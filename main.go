@@ -3,6 +3,8 @@ package main
 import (
 	"ft_cni/pkg/load"
 	"ft_cni/pkg/log"
+	"ft_cni/pkg/targets"
+	"os"
 )
 
 var (
@@ -22,7 +24,16 @@ func init() {
 func main() {
 
 	log.LogCalls(envMap, string(rawJSON))
+	cmd := envMap["CNI_COMMAND"]
+	
+	switch cmd {
 
+		
+
+	case "ADD":
+		targets.Add(envMap)
+		os.Exit(0)
+	}
 }
 
 
