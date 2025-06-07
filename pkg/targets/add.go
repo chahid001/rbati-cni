@@ -8,6 +8,7 @@ import (
 	"os"
 	"encoding/json"
 	"ft_cni/pkg/logger"
+	"ft_cni/pkg/ipam"
 )
 
 
@@ -122,7 +123,7 @@ func SettingHostNet(vethHost string, master netlink.Link) error {
 
 }
 
-func SettingIpam(NetnsPath string) error {
+func SettingIpam(NetnsPath, Address, BridgeIP string) error {
 
 	hostNS, err := netns.Get()
 	
@@ -166,14 +167,14 @@ func SettingIpam(NetnsPath string) error {
 
 
 
-	addr, _ := netlink.ParseAddr("10.42.0.12/24")
+	addr, _ := netlink.ParseAddr(Address)
 
 
 
 	netlink.AddrAdd(veth, addr)
 	netlink.LinkSetUp(veth)
 
-	gw := net.ParseIP("10.42.0.1") // IP of cni0 (bridge on host)
+	gw := net.ParseIP(BridgeIP) // IP of cni0 (bridge on host)
 
 	route := &netlink.Route{
 		LinkIndex: veth.Attrs().Index,
@@ -198,9 +199,13 @@ func Add(envMap map[string]string) {
 	logger.Log.Println("Logger initialized")
 
 
+	ipam , err := ipam.NewIPAM("10.42.0.0/24")
+
 	bridge, err := netlink.LinkByName("cni-br0")
 
 	if err != nil {
+
+		bridge_ip, mask, _ := ipam.Allocate()
 
 		br := &netlink.Bridge{
 			LinkAttrs: netlink.LinkAttrs{
@@ -213,7 +218,9 @@ func Add(envMap map[string]string) {
 			logger.Log.Println("sgs")
 		}
 
-		addr, _ := netlink.ParseAddr("10.42.0.1/24")
+		ones, _ := mask.Size()
+		cidr := fmt.Sprintf("%s/%d", bridge_ip.String(), ones)
+		addr, _ := netlink.ParseAddr(cidr)
 		if err := netlink.AddrAdd(br, addr); err != nil{
 		    logger.Log.Println("sgs")
 		}
@@ -226,15 +233,23 @@ func Add(envMap map[string]string) {
 
 	}
 
+	// bridge ip address
+	br_addr, err := netlink.AddrList(bridge, netlink.FAMILY_V4)
+	br_ip := br_addr[0].IP.String()
+
 	container_id := envMap["CNI_CONTAINERID"][:4]
 
 	vethHostName := "veth" + container_id
 
+	pod_ip, pod_mask, _ := ipam.Allocate()
 
 	CreateVethPair("vethPOD", vethHostName)
 	SettingPodNet(envMap["CNI_NETNS"], "vethPOD")
 	SettingHostNet(vethHostName, bridge)
-	SettingIpam(envMap["CNI_NETNS"])
+
+	ones, _ := pod_mask.Size()
+	cidr := fmt.Sprintf("%s/%d", pod_ip.String(), ones)
+	SettingIpam(envMap["CNI_NETNS"], cidr, br_ip)
 
 	result := map[string]interface{}{
 		"cniVersion": "0.4.0",
@@ -247,8 +262,8 @@ func Add(envMap map[string]string) {
 		"ips": []map[string]string{
 			{
 				"version": "4",
-				"address": "10.42.0.12/24",
-				"gateway": "10.42.0.1",
+				"address": cidr,
+				"gateway": br_ip,
 			},
 		},
 		"dns": map[string]string{},
