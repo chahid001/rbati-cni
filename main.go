@@ -3,6 +3,7 @@ package main
 import (
 	"ft_cni/pkg/load"
 	"ft_cni/pkg/targets"
+	"ft_cni/pkg/network"
 	"os"
 )
 
@@ -19,7 +20,7 @@ func init() {
 	envMap = load.ENV()
 	rawJSON = load.RawJson()
 
-
+	network.EnableNat()
 }
 
 
