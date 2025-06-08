@@ -6,14 +6,14 @@ import (
 	"net"
 	"fmt"
 	"os"
-	"encoding/json"
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
 	"ft_cni/pkg/load"
+	"ft_cni/pkg/result"
 )
 
 
-func CreateVethPair(vethHost, vethPOD string) error {
+func CreateVethPair(vethHost, vethPOD string) (*netlink.Veth, error) {
 
 	veth := &netlink.Veth{ // Define veth interfaces (host and pod)
 		LinkAttrs: netlink.LinkAttrs{
@@ -25,59 +25,48 @@ func CreateVethPair(vethHost, vethPOD string) error {
 
 	// Link the interfaces
 	if err := netlink.LinkAdd(veth); err != nil {
-		logs.Log.Info("Cannot Create Veth Peering between host and Pod.")
-		return err
+		logs.Log.Error("Cannot Create Veth Peering between host and Pod.")
+		return nil, err
 	}
-	
+
 	logs.Log.Info("Veth Peering Created Succefully.")
-	return nil
+	return veth, nil
 }
 
-func SettingPodNet(NetnsPath, vethPOD string) error {
-
-	hostNS, err := netns.Get()
-	
-	if err != nil {
-		logs.Log.Info("Failed to get Host namespace.")
-		return err
-	}
-
-	defer hostNS.Close()
-
+func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string) error {
 
 	// Open the cni, safer than os.Open
 	podNS, err := netns.GetFromPath(NetnsPath)
 	if err != nil {
-		logs.Log.Info("Couldn't Open Pod Namespace.")
+		logs.Log.Error("Couldn't Open Pod Namespace.")
 		return err
 	}
 	defer podNS.Close()
 
 	// get Link type of Pod Veth end
-	veth, err := netlink.LinkByName(vethPOD)
-
+	veth, err := netlink.LinkByName(PodVethEndName)
 	if err != nil {
-		logs.Log.Info("Couldn't find POD veth end.")
+		logs.Log.Error("Couldn't find POD veth end.")
 		return err
 	}
 
 	// Move POD veth end to POD namespace
 	if err := netlink.LinkSetNsFd(veth, int(podNS)); err != nil {
-		logs.Log.Info("Couldn't Move POD veth end to POD namespace.")
+		logs.Log.Error("Couldn't Move POD veth end to POD namespace.")
 		return err
 	}
 	
 	// Save the current namespace
 	origNS, err := netns.Get()
 	if err != nil {
-		logs.Log.Info("Couldn't Save the current namespace.")
+		logs.Log.Error("Couldn't Save the current namespace.")
 		return err
 	}
 	defer origNS.Close()
 
 	// Switch to the pod's network namespace
 	if err := netns.Set(podNS); err != nil {
-		logs.Log.Info("Couldn't switch current context to POD namespace.")
+		logs.Log.Error("Couldn't switch current context to POD namespace.")
 		return err
 	}
 
@@ -86,9 +75,43 @@ func SettingPodNet(NetnsPath, vethPOD string) error {
 		logs.Log.Info("Switched back to Host namespace")
 	} ()
 
-	if err := netlink.LinkSetName(veth, "eth0"); err != nil {
-		logs.Log.Info("Couldn't Rename POD veth end.")
+	if err := netlink.LinkSetName(veth, PodIF); err != nil {
+		logs.Log.Error("Couldn't Rename POD veth end.")
 		return err
+	}
+
+	vethInPod, err := netlink.LinkByName(PodIF) 
+	if err != nil {
+	    logs.Log.Error("Couldn't find POD veth end.")
+	}
+
+	addr, err := netlink.ParseAddr(PodIP)
+
+	if err != nil {
+		logs.Log.Error("Couldn't parse Address")
+		return err
+	}
+
+	if err := netlink.AddrAdd(vethInPod, addr); err != nil {
+		logs.Log.Error("Couldn't assign IP to POD interface")
+		return err
+	}
+
+	if err := netlink.LinkSetUp(vethInPod); err != nil {
+		logs.Log.Error("Couldn't set host veth UP.")
+		return err;
+	}
+
+	gw := net.ParseIP(BridgeIP) // IP of cni0 (bridge on host)
+
+	route := &netlink.Route{
+		LinkIndex: vethInPod.Attrs().Index,
+		Gw:        gw,
+	}
+
+	if err := netlink.RouteAdd(route); err != nil {
+		logs.Log.Error("Couldn't Add routing from veth host to bridge.")
+		return err;
 	}
 
 	logs.Log.Info("Pod Configuration Completed !")
@@ -97,24 +120,24 @@ func SettingPodNet(NetnsPath, vethPOD string) error {
 	return nil
 }
 
-func SettingHostNet(vethHost string, master netlink.Link) error {
+func SettingHostEnd(HostVethEndName string, master netlink.Link) error {
 
-	veth, err := netlink.LinkByName(vethHost)
+	veth, err := netlink.LinkByName(HostVethEndName)
 
 	if err != nil {
-		logs.Log.Info("Couldn't find Host veth end.")
+		logs.Log.Error("Couldn't find Host veth end.")
 		return err
 	}
 
 
 	if err := netlink.LinkSetMaster(veth, master); err != nil {
-		logs.Log.Info("Couldn't Attach host veth end to bridge.")
+		logs.Log.Error("Couldn't Attach host veth end to bridge.")
 		return err
 	}
 
 	// Set the interface Up of the host
 	if err := netlink.LinkSetUp(veth); err != nil {
-		logs.Log.Info("Couldn't set host veth UP.")
+		logs.Log.Error("Couldn't set host veth UP.")
 		return err;
 	}
 
@@ -124,74 +147,11 @@ func SettingHostNet(vethHost string, master netlink.Link) error {
 
 }
 
-func SettingIpam(NetnsPath, Address, BridgeIP string) error {
-
-	podNS, err := netns.GetFromPath(NetnsPath)
-	if err != nil {
-		logs.Log.Info("Couldn't Open Pod Namespace.")
-		return err
-	}
-	defer podNS.Close()
-
-
-	origNS, err := netns.Get()
-	if err != nil {
-		logs.Log.Info("Couldn't Save the current namespace.")
-		return err
-	}
-	defer origNS.Close()
-
-	if err := netns.Set(podNS); err != nil {
-		logs.Log.Info("Couldn't switch current context to POD namespace.")
-		return err
-	}
-
-	defer func() {
-		netns.Set(origNS)
-		logs.Log.Info("Switched back to Host namespace")
-	} ()
-
-	veth, err := netlink.LinkByName("eth0")
-	if err != nil {
-		logs.Log.Info("Couldn't find Pod veth end.")
-		return err
-	}
-
-	addr, _ := netlink.ParseAddr(Address)
-
-	if err := netlink.AddrAdd(veth, addr); err != nil {
-		logs.Log.Info("Couldn't assign IP to POD interface")
-		return err
-	}
-
-	if err := netlink.LinkSetUp(veth); err != nil {
-		logs.Log.Info("Couldn't set host veth UP.")
-		return err;
-	}
-
-	gw := net.ParseIP(BridgeIP) // IP of cni0 (bridge on host)
-
-	route := &netlink.Route{
-		LinkIndex: veth.Attrs().Index,
-		Gw:        gw,
-	}
-
-	if err := netlink.RouteAdd(route); err != nil {
-		logs.Log.Info("Couldn't Add routing from veth host to bridge.")
-		return err;
-	}
-
-
-	return nil
-}
-
 
 func Add(envMap map[string]string, config *load.CNIConfig) {
 
-
-
 	logs.Log.Info("Add")
-	logs.Log.Info(config.IPAM.Subnet)
+
 	ipam , err := network.NewIPAM(config.IPAM.Subnet)
 
 	bridge, err := netlink.LinkByName(config.Bridge)
@@ -205,20 +165,19 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 		
 
 		if err := netlink.LinkAdd(br); err != nil {
-			logs.Log.Info("sgs")
+			logs.Log.Error("Couldn't Add Bridge Interface")
 		}
-
+		// TODO: Condition if bridge ip exist, prepare it, if not allocate
 		br_ip := fmt.Sprintf("%s/%d", config.BridgeIP, 24)
 		addr, _ := netlink.ParseAddr(br_ip)
 
 		if err := netlink.AddrAdd(br, addr); err != nil {
-			logs.Log.Info("Couldn't assign IP to Bridge interface")
+			logs.Log.Error("Couldn't assign IP to Bridge interface")
 		}
 
 		if err := netlink.LinkSetUp(br); err != nil {
-			logs.Log.Info("sgs")
+			logs.Log.Error("Couldn't Set Birdge UP")
 		}
-
 
 		bridge = br
 
@@ -227,45 +186,37 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 	
 
 	container_id := envMap["CNI_CONTAINERID"][:4]
-
 	vethHostName := "veth" + container_id
-
-	pod_ip, pod_mask, _ := ipam.Allocate()
 	
-
-	CreateVethPair("vethPOD", vethHostName)
-	SettingPodNet(envMap["CNI_NETNS"], "vethPOD")
-	SettingHostNet(vethHostName, bridge)
-
+	pod_ip, pod_mask, _ := ipam.Allocate()
 	ones, _ := pod_mask.Size()
 	cidr := fmt.Sprintf("%s/%d", pod_ip.String(), ones)
-	logs.Log.Info("IP of POD %s", cidr)
-	logs.Log.Info("IP of bridge %s", config.BridgeIP)
-	SettingIpam(envMap["CNI_NETNS"], cidr, config.BridgeIP)
 
-	result := map[string]interface{}{
-		"cniVersion": "0.4.0",
-		"interfaces": []map[string]string{
-			{
-				"name":    "eth0",
-				"sandbox": envMap["CNI_NETNS"],
-			},
-		},
-		"ips": []map[string]string{
-			{
-				"version": "4",
-				"address": cidr,
-				"gateway": config.BridgeIP,
-			},
-		},
-		"dns": map[string]string{},
-	}
+	vethPair, err := CreateVethPair(vethHostName, "vethPOD")
 
-	output, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println(string(output))
+	if err := SettingPodEnd(envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, config.BridgeIP); err != nil {
+		netlink.LinkDel(vethPair)
+		netlink.LinkDel(bridge)
+		ipam.Release(&pod_ip)
+		logs.Log.Error("Setting POD end exited with error 1.")
+		os.Exit(1)
+	}
+
+	if err := SettingHostEnd(vethPair.Name, bridge); err != nil {
+		netlink.LinkDel(vethPair)
+		netlink.LinkDel(bridge)
+		ipam.Release(&pod_ip)
+		logs.Log.Error("Setting Host end exited with error 1.")
+		os.Exit(1)
+	}
+
+
+	logs.Log.Info("IP of POD %s", cidr)
+	logs.Log.Info("IP of bridge %s", config.BridgeIP)
+
+	result.ReturnAdd(envMap["CNI_NETNS"], cidr, config.BridgeIP)
 }
