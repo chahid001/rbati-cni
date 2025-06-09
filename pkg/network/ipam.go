@@ -2,10 +2,11 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
+	"fmt"
 	"sync"
+	"ft_cni/pkg/logs"
 )
 
 
@@ -77,26 +78,48 @@ func NewIPAM(cidr string) (*IPAM, error) {
 	return ipam, err
 }
 
-func (i *IPAM) Allocate() (net.IP, net.IPMask ,error) {
-	
-	i.mu.Lock()
-	defer i.mu.Unlock()
+func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
+    i.mu.Lock()
+    defer i.mu.Unlock()
 
-	ip := i.subnet.IP.To4()
-	mask := i.subnet.Mask
+    ip := i.subnet.IP.To4()
+    mask := i.subnet.Mask
 
-	for host:= 2; host < 255; host++ {
-		
-		candidate := net.IPv4(ip[0], ip[1], ip[2], byte(host)).String()
+    if candidate != "" {
+        if i.allocated[candidate] {
+             logs.Log.Error("IP already reserved !")
+             return nil, nil, fmt.Errorf("IP address %s is already reserved", candidate)
+        }
 
-		if !i.allocated[candidate] {
-			i.allocated[candidate] = true
-			err := i.Save()
-			return net.ParseIP(candidate), mask, err 
-		}
-	}
+        newIP := net.ParseIP(candidate)
+        if i.subnet.Contains(newIP) { 
+            i.allocated[candidate] = true
+            err := i.Save()
+            if err != nil {
+                return nil, nil, fmt.Errorf("failed to save IPAM data: %w", err)
+            }
+            logs.Log.Info("IP Reserved Succeffully!")
+            return newIP, mask, nil 
+        } else {
+            logs.Log.Error("IP is not part of Subnet !")
+            return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
+        }
 
-	return nil, nil, fmt.Errorf("No ip")
+    } else {
+        for host := 1; host < 255; host++ {
+            candidateIP := net.IPv4(ip[0], ip[1], ip[2], byte(host))
+            candidateStr := candidateIP.String()
+            if !i.allocated[candidateStr] {
+                i.allocated[candidateStr] = true
+                err := i.Save()
+                logs.Log.Info("IP Reserved Succeffully!")
+                return candidateIP, mask, err
+            }
+        }
+    }
+
+    logs.Log.Error("No IP available to reserve")
+    return nil, nil, fmt.Errorf("no available IP addresses in subnet %s", i.subnet.String())
 }
 
 func (i *IPAM) Release(ip *net.IP) error {

@@ -150,45 +150,92 @@ func SettingHostEnd(HostVethEndName string, master netlink.Link) error {
 
 func Add(envMap map[string]string, config *load.CNIConfig) {
 
-	logs.Log.Info("Add")
+    logs.Log.Info("Add")
 
-	ipam , err := network.NewIPAM(config.IPAM.Subnet)
+    ipam, _ := network.NewIPAM(config.IPAM.Subnet)
+    _, ip_net, _ := net.ParseCIDR(config.IPAM.Subnet)
+    
+    // Attempt to find the bridge
+    bridge, err := netlink.LinkByName(config.Bridge)
+    var brIP net.IP
 
-	bridge, err := netlink.LinkByName(config.Bridge)
-	if err != nil {
+    if err != nil { // Bridge does NOT exist, create it
+        logs.Log.Info("Bridge %s not found. Creating it.", config.Bridge)
+        br := &netlink.Bridge{
+            LinkAttrs: netlink.LinkAttrs{
+                Name: config.Bridge,
+            },
+        }
 
-		br := &netlink.Bridge{
-			LinkAttrs: netlink.LinkAttrs{
-				Name: config.Bridge,
-			},
-		}
-		
+        if err := netlink.LinkAdd(br); err != nil {
+            logs.Log.Error("Couldn't Add Bridge Interface")
+            os.Exit(1)
+        }
 
-		if err := netlink.LinkAdd(br); err != nil {
-			logs.Log.Error("Couldn't Add Bridge Interface")
-		}
-		// TODO: Condition if bridge ip exist, prepare it, if not allocate
-		br_ip := fmt.Sprintf("%s/%d", config.BridgeIP, 24)
-		addr, _ := netlink.ParseAddr(br_ip)
+        // --- IP Allocation for NEW bridge ---
+        var brCIDR string
+        if config.BridgeIP != "" {
+            ones, _ := ip_net.Mask.Size()
+            brCIDR = fmt.Sprintf("%s/%d", config.BridgeIP, ones)
+            allocatedIP, _, err := ipam.Allocate(config.BridgeIP)
+			logs.Log.Error("error: ", err)
+            if err != nil {
+                logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface")
+                netlink.LinkDel(br)
+                os.Exit(1)
+            }
+            brIP = allocatedIP
+        } else {
+            allocatedIP, br_mask, err := ipam.Allocate("")
+            if err != nil {
+                logs.Log.Error("Couldn't Allocate new IP for Bridge Interface")
+                netlink.LinkDel(br)
+                os.Exit(1)
+            }
+            ones, _ := br_mask.Size()
+            brCIDR = fmt.Sprintf("%s/%d", allocatedIP.String(), ones)
+            brIP = allocatedIP
+        }
 
-		if err := netlink.AddrAdd(br, addr); err != nil {
-			logs.Log.Error("Couldn't assign IP to Bridge interface")
-		}
+        addr, _ := netlink.ParseAddr(brCIDR)
+        if err := netlink.AddrAdd(br, addr); err != nil {
+            logs.Log.Error("Couldn't assign IP to Bridge interface")
+            netlink.LinkDel(br)
+            ipam.Release(&brIP)
+            os.Exit(1)
+        }
 
-		if err := netlink.LinkSetUp(br); err != nil {
-			logs.Log.Error("Couldn't Set Birdge UP")
-		}
+        if err := netlink.LinkSetUp(br); err != nil {
+            logs.Log.Error("Couldn't Set Bridge UP")
+            netlink.LinkDel(br)
+            ipam.Release(&brIP)
+            os.Exit(1)
+        }
+        
+        bridge = br // Update bridge variable with the new link
 
-		bridge = br
+    } else { // Bridge ALREADY exists
+        logs.Log.Info("Bridge %s already exists. Getting its configuration.", config.Bridge)
 
-	}
+        addrs, err := netlink.AddrList(bridge, netlink.FAMILY_V4)
+        if err != nil || len(addrs) == 0 {
+            logs.Log.Error("Couldn't get IP for existing bridge: %v", err)
+            os.Exit(1)
+        }
+        brIP = addrs[0].IP // Get the first IPv4 address
+    }
 
 	
 
 	container_id := envMap["CNI_CONTAINERID"][:4]
 	vethHostName := "veth" + container_id
 	
-	pod_ip, pod_mask, _ := ipam.Allocate()
+	pod_ip, pod_mask, err := ipam.Allocate("")
+	if err != nil {
+		logs.Log.Error("Couldn't Allocate IP for POD.")
+		os.Exit(1)
+	}
+	logs.Log.Error(pod_ip.String())
 	ones, _ := pod_mask.Size()
 	cidr := fmt.Sprintf("%s/%d", pod_ip.String(), ones)
 
@@ -198,9 +245,9 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 		os.Exit(1)
 	}
 
-	if err := SettingPodEnd(envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, config.BridgeIP); err != nil {
+	logs.Log.Error("dfdsf", brIP.String())
+	if err := SettingPodEnd(envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, brIP.String()); err != nil {
 		netlink.LinkDel(vethPair)
-		netlink.LinkDel(bridge)
 		ipam.Release(&pod_ip)
 		logs.Log.Error("Setting POD end exited with error 1.")
 		os.Exit(1)
@@ -208,7 +255,6 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 
 	if err := SettingHostEnd(vethPair.Name, bridge); err != nil {
 		netlink.LinkDel(vethPair)
-		netlink.LinkDel(bridge)
 		ipam.Release(&pod_ip)
 		logs.Log.Error("Setting Host end exited with error 1.")
 		os.Exit(1)
@@ -218,5 +264,5 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 	logs.Log.Info("IP of POD %s", cidr)
 	logs.Log.Info("IP of bridge %s", config.BridgeIP)
 
-	result.ReturnAdd(envMap["CNI_NETNS"], cidr, config.BridgeIP)
+	result.ReturnAdd(envMap["CNI_NETNS"], cidr,  brIP.String())
 }
