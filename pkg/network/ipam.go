@@ -19,6 +19,35 @@ type IPAM struct {
 
 }
 
+func	Inc(ip net.IP) {
+
+	ip = ip.To4()
+
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	} 
+}
+
+func	GetBroadcast(n *net.IPNet) net.IP {
+
+	if n.IP.To4() == nil {
+		logs.Log.Error("The subnet is not an IPV4 network !")
+		return nil
+	}
+
+	broadcast := make(net.IP, len(n.IP.To4()))
+
+	for i := range n.IP.To4() {
+		broadcast[i] = n.IP.To4()[i] | ^n.Mask[i] 
+	}
+
+	return broadcast
+}
+
+
 
 func (i *IPAM) Load() error {
 
@@ -62,6 +91,7 @@ func NewIPAM(cidr string) (*IPAM, error) {
 	_, subnet, err := net.ParseCIDR(cidr)
 
 	if err != nil {
+		logs.Log.Error("Couldn't parse Subnet ! Subnet invalid")
 		return nil, err
 	}
 
@@ -82,7 +112,6 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
     i.mu.Lock()
     defer i.mu.Unlock()
 
-    ip := i.subnet.IP.To4()
     mask := i.subnet.Mask
 
     if candidate != "" {
@@ -105,18 +134,30 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
             return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
         }
 
-    } else {
-        for host := 1; host < 255; host++ {
-            candidateIP := net.IPv4(ip[0], ip[1], ip[2], byte(host))
-            candidateStr := candidateIP.String()
-            if !i.allocated[candidateStr] {
-                i.allocated[candidateStr] = true
-                err := i.Save()
-                logs.Log.Info("IP Reserved Succeffully!")
-                return candidateIP, mask, err
-            }
+    } 
+
+	// ------------- Create New IPv4 -----------------
+	broadcast := GetBroadcast(i.subnet)
+	ip := i.subnet.IP
+
+	Inc(ip)
+	
+	for ; i.subnet.Contains(ip); Inc(ip) {
+        // Skip the broadcast address
+        if ip.Equal(broadcast) {
+            continue
+        }
+
+        candidateStr := ip.String()
+        if !i.allocated[candidateStr] {
+            i.allocated[candidateStr] = true
+            err := i.Save()
+            logs.Log.Info("IP Reserved Succeffully!")
+            return ip, mask, err
         }
     }
+
+
 
     logs.Log.Error("No IP available to reserve")
     return nil, nil, fmt.Errorf("no available IP addresses in subnet %s", i.subnet.String())
