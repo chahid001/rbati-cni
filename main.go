@@ -34,6 +34,10 @@ func main() {
 	case "ADD":
 		targets.Add(envMap, configJSON)
 		os.Exit(0)
+	
+	case "DEL":
+		targets.DEL(envMap, configJSON)
+		os.Exit(0)
 	}
 }
 

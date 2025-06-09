@@ -25,13 +25,14 @@ func ReturnAdd(SandBox, Address, Gateway string, DNS *load.DNSConfig) {
 				"gateway": Gateway,
 			},
 		},
-		"dns": map[string]interface{}{
-			
+	}
+
+	if DNS != nil {
+		result["dns"] = map[string]interface{}{
 			"nameservers": DNS.Nameservers,
-			"search": DNS.Search,
-			"options": DNS.Options,
-			
-		},
+			"search":      DNS.Search,
+			"options":     DNS.Options,
+		}
 	}
 
 	output, err := json.MarshalIndent(result, "", "  ")
