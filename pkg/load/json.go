@@ -7,11 +7,19 @@ import (
 	"ft_cni/pkg/logs"
 )
 
+type DNSConfig struct {
+    Nameservers []string `json:"nameservers,omitempty"`
+    Search      []string `json:"search,omitempty"`
+    Options     []string `json:"options,omitempty"`
+}
+
 type IPAMConfig struct {
 	Subnet 		string 			`json:"subnet"`
+	// Address 	string 			`json:"address,omitempty"` for Later 
 	Routes []struct {
 		Dst 	string 			`json:"dst"`
 	} 							`json:"routes"`
+	DNS 		*DNSConfig		`json:"dns,omitempty"`
 }
 
 type CNIConfig struct {
@@ -20,7 +28,6 @@ type CNIConfig struct {
 	Type      	string     		`json:"type"`
 	Bridge    	string     		`json:"bridge,omitempty"`
 	BridgeIP	string			`json:"bridgeIP,omitempty"`
-	IsGateway 	bool       		`json:"isGateway,omitempty"`
 	IPAM      	*IPAMConfig		`json:"ipam,omitempty"`
 }
 

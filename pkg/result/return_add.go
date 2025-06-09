@@ -1,14 +1,14 @@
 package result
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"ft_cni/pkg/load"
 	"os"
-
 )
 
 
-func ReturnAdd(SandBox, Address, Gateway string) {
+func ReturnAdd(SandBox, Address, Gateway string, DNS *load.DNSConfig) {
 
 	result := map[string]interface{}{
 		"cniVersion": "0.4.0",
@@ -25,7 +25,13 @@ func ReturnAdd(SandBox, Address, Gateway string) {
 				"gateway": Gateway,
 			},
 		},
-		"dns": map[string]string{},
+		"dns": map[string]interface{}{
+			
+			"nameservers": DNS.Nameservers,
+			"search": DNS.Search,
+			"options": DNS.Options,
+			
+		},
 	}
 
 	output, err := json.MarshalIndent(result, "", "  ")

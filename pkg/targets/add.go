@@ -1,15 +1,18 @@
 package targets
 
 import (
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
-	"net"
 	"fmt"
-	"os"
+	"ft_cni/pkg/load"
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
-	"ft_cni/pkg/load"
 	"ft_cni/pkg/result"
+	"net"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 
@@ -147,6 +150,26 @@ func SettingHostEnd(HostVethEndName string, master netlink.Link) error {
 
 }
 
+func LoadDNS(DNS *load.DNSConfig, NetNsPath string) error {
+
+	resolvConf := filepath.Join(NetNsPath, "etc/resolv.conf")
+	var content strings.Builder
+
+	for _, ns := range DNS.Nameservers {
+		content.WriteString("nameserver "+ ns + "\n")
+	}
+
+	for _, ns := range DNS.Search {
+		content.WriteString("search "+ ns + "\n")
+	}
+
+	for _, ns := range DNS.Options {
+		content.WriteString("options "+ ns + "\n")
+	}
+
+	return os.WriteFile(resolvConf, []byte(content.String()), 0644)
+
+}
 
 func Add(envMap map[string]string, config *load.CNIConfig) {
 
@@ -229,8 +252,17 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 
 	container_id := envMap["CNI_CONTAINERID"][:4]
 	vethHostName := "veth" + container_id
+	// var podAddress string
+
+	// Optional: IP Address Static Assignement | Test for later
+	// if config.IPAM.Address != "" {
+	// 	podAddress = config.IPAM.Address
+	// } else {
+	// 	podAddress = ""
+	// }
 	
 	pod_ip, pod_mask, err := ipam.Allocate("")
+
 	if err != nil {
 		logs.Log.Error("Couldn't Allocate IP for POD.")
 		os.Exit(1)
@@ -260,9 +292,8 @@ func Add(envMap map[string]string, config *load.CNIConfig) {
 		os.Exit(1)
 	}
 
-
 	logs.Log.Info("IP of POD %s", cidr)
 	logs.Log.Info("IP of bridge %s", config.BridgeIP)
 
-	result.ReturnAdd(envMap["CNI_NETNS"], cidr,  brIP.String())
+	result.ReturnAdd(envMap["CNI_NETNS"], cidr,  brIP.String(), config.IPAM.DNS)
 }
