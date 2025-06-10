@@ -81,7 +81,22 @@ func main() {
 		os.Exit(0)
 
 	// case "CHECK":
-	case "": // VERSIONS
+	case "VERSION":
+
+		if err := discovery.VERSION(); err != nil {
+			
+			cniErr := types.CNIError {
+				CNIVersion: configJSON.CNIVersion,
+				Code: 100,
+				Msg: "Failed in VERSION operation.",
+				Details: err.Error(),
+			}
+
+			result.ReturnErr(&cniErr)
+
+			os.Exit(1)
+		}
+		os.Exit(0)		
 
 	}
 
