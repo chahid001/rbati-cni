@@ -7,7 +7,6 @@ import (
 	"os"
 )
 
-
 func ReturnAdd(SandBox, Address, Gateway string, DNS *load.DNSConfig) error {
 
 	result := map[string]interface{}{

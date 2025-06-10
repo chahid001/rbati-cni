@@ -31,6 +31,21 @@ func main() {
 
 	cmd := envMap["CNI_COMMAND"]
 	
+	if cmd == "ADD" || cmd == "DEL" || cmd == "CHECK" {
+		if discovery.CheckVersions(configJSON.CNIVersion) == false {
+			
+			cniErr := types.CNIError {
+				CNIVersion: configJSON.CNIVersion,
+				Code: 99,
+				Msg: "Failed to execute operation, unsupported version.",
+			}
+
+			result.ReturnErr(&cniErr)
+
+			os.Exit(1)			
+		}
+	}
+
 	switch cmd {		
 
 	case "ADD":
@@ -66,7 +81,7 @@ func main() {
 		os.Exit(0)
 
 	// case "CHECK":
-	case "VERSION":
+	case "": // VERSIONS
 
 	}
 
