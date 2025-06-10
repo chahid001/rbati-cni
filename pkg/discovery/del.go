@@ -1,4 +1,4 @@
-package targets
+package discovery
 
 import (
 	"ft_cni/pkg/load"
@@ -55,21 +55,21 @@ func getPodIP(NetnsPath, PodVethEndName string) (net.IP, error) {
 	return podIP, nil
 }
 
-func DEL(envMap map[string]string, config *load.CNIConfig) {
+func DEL(envMap map[string]string, config *load.CNIConfig) error {
 
 
 	podIP, err := getPodIP(envMap["CNI_NETNS"], envMap["CNI_IFNAME"])
 
 	if err != nil {
 		logs.Log.Error("Couldn't Delete & Release POD IPv4.")
-		os.Exit(1)
+		return err
 	}
 
 	i, err := network.NewIPAM(config.IPAM.Subnet)
 
 	if err != nil {
 		logs.Log.Error("Couldn't Load Subnet for IPv4 Deletion.")
-		os.Exit(1)		
+		return err		
 	}
 	logs.Log.Info("Releasing IP ", podIP.String() )
 	i.Release(&podIP)
@@ -81,12 +81,13 @@ func DEL(envMap map[string]string, config *load.CNIConfig) {
 
 	if err != nil {
 		logs.Log.Error("Couldn't Find Veth Host end.")
-		os.Exit(1)		
+		return err		
 	}
 
 	if err := netlink.LinkDel(vethHostEnd); err != nil {
 		logs.Log.Error("Couldn't Delete Veth Host end.")
-		os.Exit(1)				
+		return err				
 	}
 
+	return nil
 }

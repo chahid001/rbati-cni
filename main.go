@@ -4,7 +4,7 @@ import (
 	"ft_cni/pkg/load"
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
-	"ft_cni/pkg/targets"
+	"ft_cni/pkg/discovery"
 	"os"
 )
 
@@ -32,13 +32,22 @@ func main() {
 	switch cmd {		
 
 	case "ADD":
-		targets.Add(envMap, configJSON)
+		if err := discovery.Add(envMap, configJSON); err != nil {
+			os.Exit(1)
+		}
 		os.Exit(0)
 	
 	case "DEL":
-		targets.DEL(envMap, configJSON)
+		if err := discovery.DEL(envMap, configJSON); err != nil {
+			os.Exit(1)
+		}
 		os.Exit(0)
+
+	// case "CHECK":
+	case "VERSION":
+
 	}
+
 }
 
 

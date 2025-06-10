@@ -8,7 +8,7 @@ import (
 )
 
 
-func ReturnAdd(SandBox, Address, Gateway string, DNS *load.DNSConfig) {
+func ReturnAdd(SandBox, Address, Gateway string, DNS *load.DNSConfig) error {
 
 	result := map[string]interface{}{
 		"cniVersion": "0.4.0",
@@ -38,8 +38,9 @@ func ReturnAdd(SandBox, Address, Gateway string, DNS *load.DNSConfig) {
 	output, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	fmt.Println(string(output))
+	return nil
 }
