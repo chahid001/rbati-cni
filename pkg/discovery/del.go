@@ -5,8 +5,6 @@ import (
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
 	"net"
-	"os"
-
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )

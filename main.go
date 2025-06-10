@@ -1,10 +1,12 @@
 package main
 
 import (
+	"ft_cni/pkg/discovery"
 	"ft_cni/pkg/load"
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
-	"ft_cni/pkg/discovery"
+	"ft_cni/pkg/result"
+	"ft_cni/pkg/types"
 	"os"
 )
 
@@ -33,12 +35,32 @@ func main() {
 
 	case "ADD":
 		if err := discovery.Add(envMap, configJSON); err != nil {
+			
+			cniErr := types.CNIError {
+				CNIVersion: configJSON.CNIVersion,
+				Code: 100,
+				Msg: "Failed in ADD operation.",
+				Details: err.Error(),
+			}
+
+			result.ReturnErr(&cniErr)
+
 			os.Exit(1)
 		}
 		os.Exit(0)
 	
 	case "DEL":
 		if err := discovery.DEL(envMap, configJSON); err != nil {
+			
+			cniErr := types.CNIError {
+				CNIVersion: configJSON.CNIVersion,
+				Code: 100,
+				Msg: "Failed in DEL operation.",
+				Details: err.Error(),
+			}
+
+			result.ReturnErr(&cniErr)
+
 			os.Exit(1)
 		}
 		os.Exit(0)
