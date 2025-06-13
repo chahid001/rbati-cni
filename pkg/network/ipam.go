@@ -57,6 +57,7 @@ func (i *IPAM) Load() error {
 	file, err := os.OpenFile("/var/lib/ipam.json", os.O_RDWR|os.O_CREATE, 0644)
 
 	if err != nil {
+		logs.Log.Error("IPAM: Couldn't open JSON file.", "ERROR", err)
 		return err 
 	}
 
@@ -68,7 +69,11 @@ func (i *IPAM) Load() error {
 		i.allocated = make(map[string]bool)
 		return nil 
 	} // Decode The existing data in JSON into map to keep tracking the IPs
-	return json.NewDecoder(file).Decode(&i.allocated)
+	if err := json.NewDecoder(file).Decode(&i.allocated); err != nil {
+		logs.Log.Error("IPAM: Couldn't Decode Allocation array to JSON file.", "ERROR", err)
+		return err
+	}
+	return nil
 }
 
 func (i *IPAM) Save() error {
@@ -76,13 +81,20 @@ func (i *IPAM) Save() error {
 	file, err := os.Create("/var/lib/ipam.json")
 
 	if err != nil {
-		return err
+		logs.Log.Error("IPAM: Couldn't open JSON file.", "ERROR", err)
+		return err 
 	}
 
 	defer file.Close()
 	// Write all the data inside map to the json
-	return json.NewEncoder(file).Encode(i.allocated)
+	
+	if err := json.NewEncoder(file).Encode(&i.allocated); err != nil {
+		logs.Log.Error("IPAM: Couldn't Encode Allocation array to JSON file.", "ERROR", err)
+		return err
+	}
+	return nil
 }
+
 /*
 	Constructor function to parse the network cidr
 	and return the subnet and make an empty map to track it
@@ -91,7 +103,7 @@ func NewIPAM(cidr string) (*IPAM, error) {
 	_, subnet, err := net.ParseCIDR(cidr)
 
 	if err != nil {
-		logs.Log.Error("Couldn't parse Subnet ! Subnet invalid")
+		logs.Log.Error("Couldn't parse Subnet ! Subnet invalid", "ERROR", err)
 		return nil, err
 	}
 

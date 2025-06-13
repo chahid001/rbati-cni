@@ -5,6 +5,8 @@ import (
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
 	"net"
+	"runtime"
+
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -19,6 +21,9 @@ func getPodIP(NetnsPath, PodVethEndName string) (net.IP, error) {
 	}
 	defer podNS.Close()
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	
 	origNS, err := netns.Get()
 	if err != nil {
 		logs.Log.Error("Couldn't Save the current namespace.", "ERROR", err)
@@ -66,17 +71,11 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 		return err
 	}
 
-	i, err := network.NewIPAM(config.IPAM.Subnet)
+
 
 	if err != nil {
 		logs.Log.Error("Couldn't Load Subnet for IPv4 Deletion.", "ERROR", err)
 		return err		
-	}
-	logs.Log.Info("Releasing IP ", podIP.String() )
-	
-	if err := i.Release(&podIP); err != nil {
-		logs.Log.Error("Couldn't release IP Address", "ERROR", err)
-		return err			
 	}
 
 	container_id := envMap["CNI_CONTAINERID"][:4]
@@ -94,5 +93,12 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 		return err				
 	}
 
+	i, err := network.NewIPAM(config.IPAM.Subnet)
+	logs.Log.Info("Releasing IP", "IP", podIP.String())
+	
+	if err := i.Release(&podIP); err != nil {
+		logs.Log.Error("Couldn't release IP Address", "ERROR", err)	
+		return err	
+	}
 	return nil
 }

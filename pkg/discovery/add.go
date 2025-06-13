@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
+	"runtime"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -60,6 +60,21 @@ func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string) err
 		return err
 	}
 	
+	/*
+		Making Golang stick with the current OS Thread to avoid Goscheduler 
+		changing Threads and moving my Goroutine to a new thread, which is not  
+		set to the POD netns context, as the Setns() only affect it's current thread, 
+		it only change the context on the current thread
+		which result on returning to host context and attaching IP address 
+		to Host's eth0 Interface
+
+		Days spent on this issue = 4
+
+		Whyyyy golang whyyy ???!!!
+	*/
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	// Save the current namespace
 	origNS, err := netns.Get()
 	if err != nil {
@@ -315,12 +330,6 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		logs.Log.Error("Couldn't Allocate IP for POD.", "ERROR", err)
 		return err
 	}
-    
-	defer func() {
-        if err := ipam.Release(&pod_ip); err != nil {
-			logs.Log.Error("Couldn't Release IP Address", "ERROR", err)
-		}
-    }()
 	
 	// Getting Subnet mask as String
 	ones, _ := pod_mask.Size()
