@@ -13,12 +13,15 @@ type DNSConfig struct {
     Options     []string `json:"options,omitempty"`
 }
 
+type RoutesConfig struct {
+	Dst 		string 			`json:"dst"`
+	Gw			string			`json:"gw"`
+}
+
 type IPAMConfig struct {
 	Subnet 		string 			`json:"subnet"`
 	// Address 	string 			`json:"address,omitempty"` for Later 
-	Routes []struct {
-		Dst 	string 			`json:"dst"`
-	} 							`json:"routes"`
+	Routes 		[]*RoutesConfig	`json:"routes"`
 	DNS 		*DNSConfig		`json:"dns,omitempty"`
 }
 
@@ -35,15 +38,17 @@ func RawJson() *CNIConfig {
 
 	data, err := io.ReadAll(os.Stdin)
 
+	logs.Log.Error("Stdin", "JSON", string(data))
+
 	if err != nil {
-		logs.Log.Info("Failed to read stdin: ", err.Error())
+		logs.Log.Error("Failed to read stdin", "ERROR", err)
 		os.Exit(1)
 	}
 
 	var config CNIConfig
 
 	if err := json.Unmarshal(data, &config); err != nil {
-		logs.Log.Info("Failed to Unmrashall")
+		logs.Log.Error("Failed to Unmrashall", "ERROR", err)
 		os.Exit(1)
 	}
 

@@ -37,7 +37,7 @@ func CreateVethPair(vethHost, vethPOD string) (*netlink.Veth, error) {
 	return veth, nil
 }
 // envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, brIP.String() // Change bridge IP with gateway
-func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string) error {
+func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string, Routes []*load.RoutesConfig) error {
 
 	// Open the Netns, safer than os.Open
 	podNS, err := netns.GetFromPath(NetnsPath)
@@ -121,17 +121,26 @@ func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string) err
 		return err;
 	}
 
-	gw := net.ParseIP(BridgeIP) // IP of cni0 (bridge on host)
 
-	route := &netlink.Route{
-		LinkIndex: vethInPod.Attrs().Index,
-		Gw:        gw,
+	//------------------- Routing ------------------------
+
+	for _, routes := range Routes {
+
+		gw := net.ParseIP(routes.Gw) 
+		_, dst, _ := net.ParseCIDR(routes.Dst)
+
+		route := &netlink.Route{
+			LinkIndex: vethInPod.Attrs().Index,
+			Gw:        gw,
+			Dst: dst,
+		}
+
+		if err := netlink.RouteAdd(route); err != nil {
+			logs.Log.Error("Couldn't Add routing from veth host to bridge.", "ERROR", err)
+			return err;
+		}
 	}
 
-	if err := netlink.RouteAdd(route); err != nil {
-		logs.Log.Error("Couldn't Add routing from veth host to bridge.", "ERROR", err)
-		return err;
-	}
 
 	logs.Log.Info("Pod Configuration Completed !")
 
@@ -337,7 +346,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 
 
 	//------------------- Setting POD End ----------------------
-	if err := SettingPodEnd(envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, brIP.String()); err != nil {
+	if err := SettingPodEnd(envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, brIP.String(), config.IPAM.Routes); err != nil {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
