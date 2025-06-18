@@ -207,6 +207,16 @@ func SettingHostEnd(HostVethEndName string, master netlink.Link, CNIResult *type
 
 func LoadDNS(DNS *load.DNSConfig, CNIResult *types.CNIResult) {
 
+	if DNS == nil {
+		return 
+	}
+
+	CNIResult.DNS = &types.DNSConfig{
+		Nameservers: make([]string, 0),
+		Options: make([]string, 0),
+		Search: make([]string, 0),
+		Domain: "",
+	}
 
 	if DNS.Nameservers != nil {
 
@@ -253,8 +263,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 	    CNIVersion: envMap["CNI_VERSION"],
 	    Interfaces: make([]types.Interface, 0), 
 	    IPs:        make([]types.IPConfig, 0),
-	    Routes:     make([]types.Route, 0),
-	    DNS:        &types.DNSConfig{},             
+	    Routes:     make([]types.Route, 0),   
 	}
 
 
@@ -455,7 +464,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		CNIResult.IPs = append(CNIResult.IPs, ipConf)
 	}
 
-	// LoadDNS(config.IPAM.DNS, CNIResult)
+	LoadDNS(config.IPAM.DNS, CNIResult)
 
 	return result.ReturnAdd(CNIResult)
 }
