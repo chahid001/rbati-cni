@@ -6,16 +6,15 @@ import (
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
 	"ft_cni/pkg/result"
+	"ft_cni/pkg/types"
+
+	"ft_cni/pkg/utils"
 	"net"
-	"os"
-	"path/filepath"
-	"strings"
 	"runtime"
+
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
-
-
 
 func CreateVethPair(vethHost, vethPOD string) (*netlink.Veth, error) {
 
@@ -36,8 +35,17 @@ func CreateVethPair(vethHost, vethPOD string) (*netlink.Veth, error) {
 	logs.Log.Info("Veth Peering Created Succefully.")
 	return veth, nil
 }
-// envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, brIP.String() // Change bridge IP with gateway
-func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string, Routes []*load.RoutesConfig) error {
+
+
+
+func SettingPodEnd(
+	NetnsPath, 
+	PodIF, 
+	PodVethEndName,
+	bridgeIP,
+	PodIP string, 
+	Routes []*load.RoutesConfig, 
+	CNIResult *types.CNIResult) error {
 
 	// Open the Netns, safer than os.Open
 	podNS, err := netns.GetFromPath(NetnsPath)
@@ -50,7 +58,7 @@ func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string, Rou
 	// get Link type of Pod Veth end
 	veth, err := netlink.LinkByName(PodVethEndName)
 	if err != nil {
-		logs.Log.Error("Couldn't find POD veth end.", "ERROR", err)
+		logs.Log.Error("Couldn't find POD veth end in host.", "ERROR", err)
 		return err
 	}
 
@@ -99,9 +107,10 @@ func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string, Rou
 		return err
 	}
 
+
 	vethInPod, err := netlink.LinkByName(PodIF) 
 	if err != nil {
-	    logs.Log.Error("Couldn't find POD veth end.", "ERROR", err)
+	    logs.Log.Error("Couldn't find POD veth end inside POD.", "ERROR", err)
 	}
 
 	addr, err := netlink.ParseAddr(PodIP)
@@ -121,17 +130,29 @@ func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string, Rou
 		return err;
 	}
 
+	// Result gatehring
+	CNIResult.Interfaces = append(CNIResult.Interfaces, types.Interface{
+		Name: PodIF,
+		MAC: vethInPod.Attrs().HardwareAddr.String(),
+		Sandbox: NetnsPath,
+	})
+
 
 	//------------------- Routing ------------------------
 
 	for _, routes := range Routes {
 
-		gw := net.ParseIP(routes.Gw) 
+		gw := net.ParseIP(bridgeIP)
+		
+		if routes.Gw != "" {
+			gw = net.ParseIP(routes.Gw) 
+		}
+		
 		_, dst, _ := net.ParseCIDR(routes.Dst)
 
 		route := &netlink.Route{
 			LinkIndex: vethInPod.Attrs().Index,
-			Gw:        gw,
+			Gw:  gw,
 			Dst: dst,
 		}
 
@@ -139,16 +160,21 @@ func SettingPodEnd(NetnsPath, PodIF, PodVethEndName, PodIP, BridgeIP string, Rou
 			logs.Log.Error("Couldn't Add routing from veth host to bridge.", "ERROR", err)
 			return err;
 		}
+
+		CNIResult.Routes = append(CNIResult.Routes, types.Route{
+			Dst: routes.Dst,
+			GW: routes.Gw,
+		})
 	}
 
 
 	logs.Log.Info("Pod Configuration Completed !")
 
-	
-	return nil
+
+	return nil	
 }
 
-func SettingHostEnd(HostVethEndName string, master netlink.Link) error {
+func SettingHostEnd(HostVethEndName string, master netlink.Link, CNIResult *types.CNIResult) error {
 
 	veth, err := netlink.LinkByName(HostVethEndName)
 
@@ -156,7 +182,6 @@ func SettingHostEnd(HostVethEndName string, master netlink.Link) error {
 		logs.Log.Error("Couldn't find Host veth end.", "ERROR", err)
 		return err
 	}
-
 
 	if err := netlink.LinkSetMaster(veth, master); err != nil {
 		logs.Log.Error("Couldn't Attach host veth end to bridge.", "ERROR", err)
@@ -166,35 +191,55 @@ func SettingHostEnd(HostVethEndName string, master netlink.Link) error {
 	// Set the interface Up of the host
 	if err := netlink.LinkSetUp(veth); err != nil {
 		logs.Log.Error("Couldn't set host veth UP.", "ERROR", err)
-		return err;
+		return err
 	}
 
 	logs.Log.Info("Host Configuration Completed !")
+
+	CNIResult.Interfaces = append(CNIResult.Interfaces, types.Interface{
+		Name: HostVethEndName,
+		MAC: veth.Attrs().HardwareAddr.String(),
+	})
 
 	return nil
 
 }
 
-func LoadDNS(DNS *load.DNSConfig, NetNsPath string) error {
+func LoadDNS(DNS *load.DNSConfig, CNIResult *types.CNIResult) {
 
-	resolvConf := filepath.Join(NetNsPath, "etc/resolv.conf")
-	var content strings.Builder
 
-	for _, ns := range DNS.Nameservers {
-		content.WriteString("nameserver "+ ns + "\n")
+	if DNS.Nameservers != nil {
+
+		for _, ns := range DNS.Nameservers {
+			CNIResult.DNS.Nameservers = append(CNIResult.DNS.Nameservers, ns)
+		}
+
 	}
+	
+	if DNS.Options != nil {
 
-	for _, ns := range DNS.Search {
-		content.WriteString("search "+ ns + "\n")
+		for _, op := range DNS.Options {
+			CNIResult.DNS.Options = append(CNIResult.DNS.Options, op)
+		}
+		
 	}
+	
+	if DNS.Search != nil {
 
-	for _, ns := range DNS.Options {
-		content.WriteString("options "+ ns + "\n")
+		for _, sc := range DNS.Search {
+			CNIResult.DNS.Search = append(CNIResult.DNS.Search, sc)
+		}
+
 	}
+	
+	if DNS.Domain != "" {
 
-	return os.WriteFile(resolvConf, []byte(content.String()), 0644)
+		CNIResult.DNS.Domain = DNS.Domain
+
+	} 
 
 }
+
 
 func Add(envMap map[string]string, config *load.CNIConfig) error {
 
@@ -202,12 +247,25 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("Begin ADD operation for", "POD", envMap["CNI_CONTAINERID"][:4])
 
+	//---------------- Create Result Object + Initialization -------------
+
+	CNIResult := &types.CNIResult{
+	    CNIVersion: envMap["CNI_VERSION"],
+	    Interfaces: make([]types.Interface, 0), 
+	    IPs:        make([]types.IPConfig, 0),
+	    Routes:     make([]types.Route, 0),
+	    DNS:        &types.DNSConfig{},             
+	}
+
+
+
 	// --------------- Create new IPAM Subnet ------------
     ipam, err := network.NewIPAM(config.IPAM.Subnet)
 	if err != nil {
 		logs.Log.Error("Could create new IPAM subnet", config.IPAM.Subnet, "ERROR", err)
 		return err
 	}
+
 
 	// --------------- Parse IPAM Subnet CIDR ------------
 	_, ip_net, err := net.ParseCIDR(config.IPAM.Subnet) 
@@ -317,19 +375,21 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 	//--------------- Setting name for Host Veth end -----------------
 	container_id := envMap["CNI_CONTAINERID"][:4]
 	vethHostName := "veth" + container_id
+	vethPODName := "pod" + container_id
 	
 	//--------------- Create VethPair -----------------
 	logs.Log.Info("Creating Veth pair for POD and Host", "VethHost", vethHostName)
-	vethPair, err := CreateVethPair(vethHostName, "vethPOD")
+	vethPair, err := CreateVethPair(vethHostName, vethPODName)
 
 	if err != nil {
 		return err
 	}
     defer func() {
-        if err != nil {
+		if err != nil {
 			netlink.LinkDel(vethPair)
-        }
-    }()
+		}
+	} ()
+
 
 	//--------------- Allocate IP Address for POD -----------------
 	logs.Log.Info("Allocating new IP Address for", "POD", envMap["CNI_CONTAINERID"][:4])
@@ -346,7 +406,15 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 
 
 	//------------------- Setting POD End ----------------------
-	if err := SettingPodEnd(envMap["CNI_NETNS"], envMap["CNI_IFNAME"], vethPair.PeerName, cidr, brIP.String(), config.IPAM.Routes); err != nil {
+	if err := SettingPodEnd(
+		envMap["CNI_NETNS"], 
+		envMap["CNI_IFNAME"], 
+		vethPair.PeerName,
+		brIP.String(),
+		cidr, 
+		config.IPAM.Routes, 
+		CNIResult,
+	); err != nil {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
@@ -357,7 +425,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		return err
 	}
 
-	if err := SettingHostEnd(vethPair.Name, bridge); err != nil {
+	if err := SettingHostEnd(vethPair.Name, bridge, CNIResult); err != nil {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
@@ -368,6 +436,26 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		return err
 	}
 
-	return result.ReturnAdd(envMap["CNI_NETNS"], cidr,  brIP.String(), config.IPAM.DNS)
-	
+	//-------------- Get POD IP Addresses -------------------
+	Addrs, err := utils.GetPodIP(envMap["CNI_NETNS"], envMap["CNI_IFNAME"])
+
+	for i, Address := range Addrs {
+
+		ipConf := types.IPConfig{
+        	Address: Address.IPNet.String(),
+        	Interface: i, 
+    	}
+
+		if Address.IP.To4() != nil {
+			ipConf.Version = "4"
+		} else {
+			ipConf.Version = "6"
+		}
+
+		CNIResult.IPs = append(CNIResult.IPs, ipConf)
+	}
+
+	// LoadDNS(config.IPAM.DNS, CNIResult)
+
+	return result.ReturnAdd(CNIResult)
 }

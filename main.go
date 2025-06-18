@@ -36,8 +36,8 @@ func main() {
 			
 			cniErr := types.CNIError {
 				CNIVersion: configJSON.CNIVersion,
-				Code: 99,
-				Msg: "Failed to execute operation, unsupported version.",
+				Code: 4,
+				Msg: "Incompatible CNI version",
 			}
 
 			result.ReturnErr(&cniErr)

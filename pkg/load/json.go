@@ -9,6 +9,7 @@ import (
 
 type DNSConfig struct {
     Nameservers []string `json:"nameservers,omitempty"`
+	Domain		string 	 `json:"domain,omitempty"`	
     Search      []string `json:"search,omitempty"`
     Options     []string `json:"options,omitempty"`
 }
@@ -20,7 +21,6 @@ type RoutesConfig struct {
 
 type IPAMConfig struct {
 	Subnet 		string 			`json:"subnet"`
-	// Address 	string 			`json:"address,omitempty"` for Later 
 	Routes 		[]*RoutesConfig	`json:"routes"`
 	DNS 		*DNSConfig		`json:"dns,omitempty"`
 }
@@ -38,7 +38,7 @@ func RawJson() *CNIConfig {
 
 	data, err := io.ReadAll(os.Stdin)
 
-	logs.Log.Error("Stdin", "JSON", string(data))
+	// logs.Log.Error("Stdin", "JSON", string(data)) for Debug
 
 	if err != nil {
 		logs.Log.Error("Failed to read stdin", "ERROR", err)

@@ -1,8 +1,48 @@
 package types
 
+//------------ CNI Error ---------------------
+
 type CNIError struct {
 	CNIVersion	string `json:"cniVersion"`
     Code       int    `json:"code"`
     Msg        string `json:"msg"`
     Details    string `json:"details,omitempty"`
+}
+
+
+//------------ CNI Result ---------------------
+
+type CNIResult struct {
+    CNIVersion  string      `json:"cniVersion"`
+    Interfaces  []Interface `json:"interfaces"`
+    IPs         []IPConfig  `json:"ips"`
+    Routes      []Route     `json:"routes,omitempty"` 
+    DNS         *DNSConfig  `json:"dns,omitempty"`    
+}
+
+
+//------------- Generic Types -----------------
+
+type Interface struct {
+    Name        string       `json:"name"`
+    MAC         string       `json:"mac"`
+    Sandbox     string       `json:"sandbox,omitempty"` 
+}
+
+type IPConfig struct {
+    Version     string       `json:"version"`
+    Address     string       `json:"address"` 
+    Interface   int          `json:"interface"` 
+}
+
+type Route struct {
+    Dst         string       `json:"dst"`
+    GW          string       `json:"gw,omitempty"`
+}
+
+type DNSConfig struct {
+    Nameservers []string     `json:"nameservers,omitempty"`
+    Domain      string       `json:"domain,omitempty"`
+    Search      []string     `json:"search,omitempty"`
+    Options     []string     `json:"options,omitempty"`
 }

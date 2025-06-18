@@ -4,67 +4,20 @@ import (
 	"ft_cni/pkg/load"
 	"ft_cni/pkg/logs"
 	"ft_cni/pkg/network"
-	"net"
-	"runtime"
+	"ft_cni/pkg/utils"
 
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 )
 
 
-func getPodIP(NetnsPath, PodVethEndName string) (net.IP, error) {
-
-	podNS, err := netns.GetFromPath(NetnsPath)
-	if err != nil {
-		logs.Log.Error("Couldn't Open Pod Namespace.", "ERROR", err)
-		return nil, err
-	}
-	defer podNS.Close()
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	
-	origNS, err := netns.Get()
-	if err != nil {
-		logs.Log.Error("Couldn't Save the current namespace.", "ERROR", err)
-		return nil, err
-	}
-	defer origNS.Close()
-	
-	if err := netns.Set(podNS); err != nil {
-		logs.Log.Error("Couldn't switch current context to POD namespace.", "ERROR", err)
-		return nil, err
-	}
-	
-	defer func() {
-		netns.Set(origNS)
-		logs.Log.Info("Switched back to Host namespace")
-	} ()
-	
-	veth, err := netlink.LinkByName(PodVethEndName)
-	if err != nil {
-		logs.Log.Error("Couldn't find POD veth end.", "ERROR", err)
-		return nil, err
-	
-	}
-
-    addrs, err := netlink.AddrList(veth, netlink.FAMILY_V4)
-    if err != nil || len(addrs) == 0 {
-        logs.Log.Error("Couldn't get IP for POD veth end", "ERROR", err)
-        return nil, err
-    }
-    podIP := addrs[0].IP 
-
-	return podIP, nil
-}
 
 func DEL(envMap map[string]string, config *load.CNIConfig) error {
 
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("----------------------------")
-	logs.Log.Info("Begin ADD operation for", "POD", envMap["CNI_CONTAINERID"][:4])
+	logs.Log.Info("Begin DEL operation for", "POD", envMap["CNI_CONTAINERID"][:4])
 
-	podIP, err := getPodIP(envMap["CNI_NETNS"], envMap["CNI_IFNAME"])
+	podIPs, err := utils.GetPodIP(envMap["CNI_NETNS"], envMap["CNI_IFNAME"])
 
 	if err != nil {
 		logs.Log.Error("Couldn't Delete & Release POD IPv4.", "ERROR", err)
@@ -94,11 +47,15 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 	}
 
 	i, err := network.NewIPAM(config.IPAM.Subnet)
-	logs.Log.Info("Releasing IP", "IP", podIP.String())
-	
-	if err := i.Release(&podIP); err != nil {
-		logs.Log.Error("Couldn't release IP Address", "ERROR", err)	
-		return err	
+
+	for _, ip := range podIPs {
+
+		logs.Log.Info("Releasing IP", "IP", ip.IP.String())
+		if err := i.Release(&ip.IP); err != nil {
+			logs.Log.Error("Couldn't release IP Address", "ERROR", err)	
+			return err	
+		}
 	}
+
 	return nil
 }
