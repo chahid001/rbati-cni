@@ -8,34 +8,6 @@ import (
 	"os"
 )
 
-// func ReturnAdd(SandBox, Address, Gateway string) error {
-
-// 	result := map[string]interface{}{
-// 		"cniVersion": "0.4.0",
-// 		"interfaces": []map[string]string{
-// 			{
-// 				"name":    "eth0",
-// 				"sandbox": SandBox,
-// 			},
-// 		},
-// 		"ips": []map[string]string{
-// 			{
-// 				"version": "4",
-// 				"address": Address,
-// 				"gateway": Gateway,
-// 			},
-// 		},
-// 	}
-
-// 	output, err := json.MarshalIndent(result, "", "  ")
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-// 		return err
-// 	}
-
-// 	fmt.Println(string(output))
-// 	return nil
-// }
 
 func ReturnAdd(CNIResult *types.CNIResult) error {
 

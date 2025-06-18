@@ -80,7 +80,22 @@ func main() {
 		}
 		os.Exit(0)
 
-	// case "CHECK":
+	case "CHECK":
+		if err := discovery.CHECK(envMap, configJSON); err != nil {
+			
+			cniErr := types.CNIError {
+				CNIVersion: configJSON.CNIVersion,
+				Code: 100,
+				Msg: "Failed in CHECK operation.",
+				Details: err.Error(),
+			}
+
+			result.ReturnErr(&cniErr)
+
+			os.Exit(1)
+		}
+		os.Exit(0)	
+
 	case "VERSION":
 
 		if err := discovery.VERSION(); err != nil {

@@ -454,12 +454,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
         	Address: Address.IPNet.String(),
         	Interface: i, 
     	}
-
-		if Address.IP.To4() != nil {
-			ipConf.Version = "4"
-		} else {
-			ipConf.Version = "6"
-		}
+		ipConf.Version = "4"
 
 		CNIResult.IPs = append(CNIResult.IPs, ipConf)
 	}

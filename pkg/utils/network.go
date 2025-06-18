@@ -44,7 +44,8 @@ func GetPodIP(NetnsPath, PodVethEndName string) ([]netlink.Addr,  error) {
 	
 	}
 
-    addrs, err := netlink.AddrList(veth, netlink.FAMILY_ALL)
+    addrs, err := netlink.AddrList(veth, netlink.FAMILY_V4)
+
     if err != nil || len(addrs) == 0 {
         logs.Log.Error("Couldn't get IP for POD veth end", "ERROR", err)
         return nil, err
