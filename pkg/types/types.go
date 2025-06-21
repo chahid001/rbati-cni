@@ -1,5 +1,12 @@
 package types
 
+//----------------- IPAM --------------------
+
+type LeaseInfo struct {
+    TimeStamp   int64 
+    ClientID    string
+}
+
 //------------ CNI Error ---------------------
 
 type CNIError struct {

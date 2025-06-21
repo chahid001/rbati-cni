@@ -269,11 +269,12 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 
 
 	// --------------- Create new IPAM Subnet ------------
-    ipam, err := network.NewIPAM(config.IPAM.Subnet)
+    ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db", 300)
 	if err != nil {
 		logs.Log.Error("Could create new IPAM subnet", config.IPAM.Subnet, "ERROR", err)
 		return err
 	}
+	defer ipam.Close()
 
 
 	// --------------- Parse IPAM Subnet CIDR ------------
@@ -308,7 +309,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 			logs.Log.Info("Found Bridge IP Address at Conflist", "BRIDGE", config.Bridge)
             ones, _ := ip_net.Mask.Size()
             brCIDR = fmt.Sprintf("%s/%d", config.BridgeIP, ones)
-            allocatedIP, _, err := ipam.Allocate(config.BridgeIP)
+            allocatedIP, _, err := ipam.Allocate(config.BridgeIP, config.Bridge)
             if err != nil {
                 logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface", "ERROR", err)
 				logs.Log.Info("Cleaning... Deleting Bridge", "BRIDGE", config.Bridge)
@@ -323,7 +324,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 			logs.Log.Info("No IP Address was found in Conflist for", "BRIDGE", config.Bridge)
 			logs.Log.Info("Allocating new IP Address from IPAM", "SUBNET", config.IPAM.Subnet)
 
-            allocatedIP, br_mask, err := ipam.Allocate("")
+            allocatedIP, br_mask, err := ipam.Allocate("", config.Bridge)
             if err != nil {
                 logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface", "ERROR", err)
 				logs.Log.Info("Cleaning... Deleting Bridge", "BRIDGE", config.Bridge)
@@ -348,7 +349,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
             if err := netlink.LinkDel(br); err != nil {
 				logs.Log.Error("Couldn't delete Bridge", "ERROR", err)
 			}
-            if err := ipam.Release(&brIP); err != nil {
+            if err := ipam.Release(brIP.String()); err != nil {
 				logs.Log.Error("Couldn't Release IP Address", "ERROR", err)
 			}
             return err
@@ -360,7 +361,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
             if err := netlink.LinkDel(br); err != nil {
 				logs.Log.Error("Couldn't delete Bridge", "ERROR", err)
 			}
-            if err := ipam.Release(&brIP); err != nil {
+            if err := ipam.Release(brIP.String()); err != nil {
 				logs.Log.Error("Couldn't Release IP Address", "ERROR", err)
 			}
             return err
@@ -402,7 +403,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 
 	//--------------- Allocate IP Address for POD -----------------
 	logs.Log.Info("Allocating new IP Address for", "POD", envMap["CNI_CONTAINERID"][:4])
-	pod_ip, pod_mask, err := ipam.Allocate("")
+	pod_ip, pod_mask, err := ipam.Allocate("", container_id)
 
 	if err != nil {
 		logs.Log.Error("Couldn't Allocate IP for POD.", "ERROR", err)
@@ -427,7 +428,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
-		if err := ipam.Release(&pod_ip); err != nil {
+		if err := ipam.Release(pod_ip.String()); err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 		}
 		logs.Log.Error("Setting POD end exited with error 1.")
@@ -438,7 +439,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
-		if err := ipam.Release(&pod_ip); err != nil {
+		if err := ipam.Release(pod_ip.String()); err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 		}
 		logs.Log.Error("Setting Host end exited with error 1.")

@@ -46,12 +46,17 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 		return err				
 	}
 
-	i, err := network.NewIPAM(config.IPAM.Subnet)
+	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db", 300)
+	if err != nil {
+		logs.Log.Error("Could create new IPAM subnet", config.IPAM.Subnet, "ERROR", err)
+		return err
+	}
+	defer ipam.Close()
 
 	for _, ip := range podIPs {
 
 		logs.Log.Info("Releasing IP", "IP", ip.IP.String())
-		if err := i.Release(&ip.IP); err != nil {
+		if err := ipam.Release(ip.IP.String()); err != nil {
 			logs.Log.Error("Couldn't release IP Address", "ERROR", err)	
 			return err	
 		}

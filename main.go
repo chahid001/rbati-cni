@@ -24,7 +24,10 @@ func init() {
 	logs.Log.Info("env check")
 	configJSON = load.RawJson()
 	logs.Log.Info("Logjson check")
+	
+	
 	network.EnableNat()
+	// network.SetupVXLAN("ftcni0", 1001, "")
 }
 
 func main() {
