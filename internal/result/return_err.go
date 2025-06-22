@@ -3,13 +3,9 @@ package result
 import (
 	"encoding/json"
 	"fmt"
-	"ft_cni/pkg/types"
+	"ft_cni/internal/types"
 	"os"
 )
-
-
-
-
 
 func ReturnErr(ErrObject *types.CNIError) {
 

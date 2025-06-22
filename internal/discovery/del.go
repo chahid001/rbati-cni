@@ -1,15 +1,13 @@
 package discovery
 
 import (
-	"ft_cni/pkg/load"
-	"ft_cni/pkg/logs"
-	"ft_cni/pkg/network"
-	"ft_cni/pkg/utils"
+	"ft_cni/internal/load"
+	"ft_cni/internal/logs"
+	"ft_cni/internal/network"
+	"ft_cni/internal/utils"
 
 	"github.com/vishvananda/netlink"
 )
-
-
 
 func DEL(envMap map[string]string, config *load.CNIConfig) error {
 
@@ -24,11 +22,9 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 		return err
 	}
 
-
-
 	if err != nil {
 		logs.Log.Error("Couldn't Load Subnet for IPv4 Deletion.", "ERROR", err)
-		return err		
+		return err
 	}
 
 	container_id := envMap["CNI_CONTAINERID"][:4]
@@ -38,12 +34,12 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 
 	if err != nil {
 		logs.Log.Error("Couldn't Find Veth Host end.", "ERROR", err)
-		return err		
+		return err
 	}
 
 	if err := netlink.LinkDel(vethHostEnd); err != nil {
 		logs.Log.Error("Couldn't Delete Veth Host end.", "ERROR", err)
-		return err				
+		return err
 	}
 
 	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db", 300)
@@ -57,8 +53,8 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 
 		logs.Log.Info("Releasing IP", "IP", ip.IP.String())
 		if err := ipam.Release(ip.IP.String()); err != nil {
-			logs.Log.Error("Couldn't release IP Address", "ERROR", err)	
-			return err	
+			logs.Log.Error("Couldn't release IP Address", "ERROR", err)
+			return err
 		}
 	}
 

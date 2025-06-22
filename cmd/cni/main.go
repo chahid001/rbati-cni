@@ -1,13 +1,11 @@
 package main
 
 import (
-	"ft_cni/pkg/discovery"
-	"ft_cni/pkg/load"
-	"ft_cni/pkg/logs"
-	"ft_cni/pkg/network"
-	"ft_cni/pkg/result"
-	"ft_cni/pkg/types"
-	"net"
+	"ft_cni/internal/discovery"
+	"ft_cni/internal/load"
+	"ft_cni/internal/logs"
+	"ft_cni/internal/result"
+	"ft_cni/internal/types"
 	"os"
 )
 
@@ -25,10 +23,6 @@ func init() {
 	logs.Log.Info("env check")
 	configJSON = load.RawJson()
 	logs.Log.Info("Logjson check")
-	
-	
-	network.EnableNat()
-	network.SetupVXLAN("vxlan0", 1001, net.ParseIP("192.168.56.111"), net.ParseIP("192.168.56.110"))
 }
 
 func main() {

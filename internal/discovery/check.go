@@ -1,9 +1,9 @@
 package discovery
 
 import (
-	"ft_cni/pkg/load"
-	"ft_cni/pkg/logs"
-	"ft_cni/pkg/utils"
+	"ft_cni/internal/load"
+	"ft_cni/internal/logs"
+	"ft_cni/internal/utils"
 	"net"
 	"runtime"
 
@@ -11,11 +11,8 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-
-
-
 func CHECK(envMap map[string]string, config *load.CNIConfig) error {
-	
+
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("Begin CHECK operation for", "POD", envMap["CNI_CONTAINERID"][:4])
@@ -27,7 +24,7 @@ func CHECK(envMap map[string]string, config *load.CNIConfig) error {
 		return err
 	}
 	defer podNS.Close()
-	
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -46,8 +43,8 @@ func CHECK(envMap map[string]string, config *load.CNIConfig) error {
 	defer func() {
 		netns.Set(origNS)
 		logs.Log.Info("Switched back to Host namespace")
-	} ()
-	
+	}()
+
 	// Check Interface
 	_, err = netlink.LinkByName(envMap["CNI_IFNAME"])
 
@@ -58,22 +55,21 @@ func CHECK(envMap map[string]string, config *load.CNIConfig) error {
 
 	// Check IPs
 	Addrs, err := utils.GetPodIP(envMap["CNI_NETNS"], envMap["CNI_IFNAME"])
-	
+
 	_, subnet, err := net.ParseCIDR(config.IPAM.Subnet)
 
 	if err != nil {
 		logs.Log.Error("Couldn't parse Subnet", "ERROR", err)
-		return err		
+		return err
 	}
 
 	for _, Address := range Addrs {
 
 		if !subnet.Contains(Address.IP) {
 			logs.Log.Error("IP does not belong to Subent", "IP", Address.IP.String())
-			return err				
+			return err
 		}
 	}
-
 
 	return nil
 }
