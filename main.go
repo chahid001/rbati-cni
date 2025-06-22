@@ -7,6 +7,7 @@ import (
 	"ft_cni/pkg/network"
 	"ft_cni/pkg/result"
 	"ft_cni/pkg/types"
+	"net"
 	"os"
 )
 
@@ -27,7 +28,7 @@ func init() {
 	
 	
 	network.EnableNat()
-	// network.SetupVXLAN("ftcni0", 1001, "")
+	network.SetupVXLAN("vxlan0", 1001, net.ParseIP("192.168.56.111"), net.ParseIP("192.168.56.110"))
 }
 
 func main() {

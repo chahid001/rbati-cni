@@ -8,7 +8,7 @@ import (
 )
 
 
-func SetupVXLAN(name string, vni int, iface netlink.Link, localIP, remoteIP net.IP) error {
+func SetupVXLAN(name string, vni int, localIP, remoteIP net.IP) error {
 
 	vxlan := &netlink.Vxlan{
 
@@ -16,7 +16,7 @@ func SetupVXLAN(name string, vni int, iface netlink.Link, localIP, remoteIP net.
 			Name: name,
 		},
 		VxlanId: vni,
-		VtepDevIndex: iface.Attrs().Index,
+		VtepDevIndex: 3,
 		Group: remoteIP,
 		SrcAddr: localIP,
 		Port: 4789,
