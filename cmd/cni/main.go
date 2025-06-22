@@ -21,7 +21,7 @@ func init() {
 	logs.Log.Info("Init Function | Initialized Log")
 	envMap = load.ENV()
 	logs.Log.Info("env check")
-	configJSON = load.RawJson()
+	configJSON = load.RawJSONFromStdin()
 	logs.Log.Info("Logjson check")
 }
 

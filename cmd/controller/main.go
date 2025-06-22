@@ -15,7 +15,7 @@ func init() {
 	logs.Log.Info("Init Function | Initialized Log")
 
 	logs.Log.Info("env check")
-	configJSON = load.RawJson()
+	configJSON = load.LoadFromFile("/etc/cni/net.d/10-ftcni.conflist")
 	logs.Log.Info("Logjson check")
 	
 

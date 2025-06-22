@@ -35,21 +35,33 @@ type CNIConfig struct {
 	IPAM       *IPAMConfig `json:"ipam,omitempty"`
 }
 
-func RawJson() *CNIConfig {
+// For CNI plugin (stdin use)
+func RawJSONFromStdin() *CNIConfig {
+	return parseCNIConfig(os.Stdin)
+}
 
-	data, err := io.ReadAll(os.Stdin)
-
-	// logs.Log.Error("Stdin", "JSON", string(data)) for Debug
-
+// For controller (file use)
+func LoadFromFile(path string) *CNIConfig {
+	file, err := os.Open(path)
 	if err != nil {
-		logs.Log.Error("Failed to read stdin", "ERROR", err)
+		logs.Log.Error("Failed to open config file", "path", path, "ERROR", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+	return parseCNIConfig(file)
+}
+
+// Shared logic
+func parseCNIConfig(r io.Reader) *CNIConfig {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		logs.Log.Error("Failed to read config", "ERROR", err)
 		os.Exit(1)
 	}
 
 	var config CNIConfig
-
 	if err := json.Unmarshal(data, &config); err != nil {
-		logs.Log.Error("Failed to Unmrashall", "ERROR", err)
+		logs.Log.Error("Failed to unmarshal config", "ERROR", err)
 		os.Exit(1)
 	}
 
