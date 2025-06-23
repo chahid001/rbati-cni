@@ -1,10 +1,12 @@
 package network
 
 import (
+	"log"
+
 	"github.com/coreos/go-iptables/iptables"
 )
 
-
+// TODO : change values to parametres
 func EnableNat() error {
 
 	ipt, err := iptables.New()
@@ -30,5 +32,6 @@ func EnableNat() error {
 		}
 	}
 
+	log.Println("[INFO] Enabling NAT")
 	return nil
 }

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: rbati-agent
+spec:
+  selector:
+    matchLabels:
+      app: rbati-agent
+  template:
+    metadata:
+      labels:
+        app: rbati-agent
+    spec:
+      hostNetwork: true
+      containers:
+      - name: agent
+        image: schahid01/rbati-agent:latest
+        securityContext:
+          privileged: true  
+        volumeMounts:
+        - name: cniconf
+          mountPath: /etc/cni/net.d
+        - name: cni-bin
+          mountPath: /opt/cni/bin
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+      volumes:
+      - name: cniconf
+        hostPath:
+          path: /etc/cni/net.d
+      - name: cni-bin
+        hostPath:
+          path: /opt/cni/bin

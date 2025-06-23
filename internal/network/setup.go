@@ -2,15 +2,21 @@ package network
 
 import (
 	"ft_cni/internal/logs"
-	"net"
+	"log"
 
 	"github.com/vishvananda/netlink"
 )
 
-func SetupVXLAN(name, iface string, vni int, localIP, remoteIP net.IP) error {
+func SetupVXLAN(name, iface string, vni int) error {
+
+	_, err := netlink.LinkByName(name)
+	if err == nil {
+		log.Println("[INFO] VXLAN interface already exists")
+		return nil
+	}
+
 
 	ifVeth, err := netlink.LinkByName(iface)
-
 	if err != nil {
 		return err
 	}
@@ -22,10 +28,9 @@ func SetupVXLAN(name, iface string, vni int, localIP, remoteIP net.IP) error {
 		},
 		VxlanId:      vni,
 		VtepDevIndex: ifVeth.Attrs().Index,
-		Group:        remoteIP,
-		SrcAddr:      localIP,
+		SrcAddr:      nil, // Funny thing the kernel will take the lead to choose it
 		Port:         4789,
-		Learning:     false,
+		Learning:     false, // To always sent ARP requests to be up to date
 		Proxy:        false,
 		L2miss:       false,
 		L3miss:       false,
