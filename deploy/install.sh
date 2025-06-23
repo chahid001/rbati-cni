@@ -18,13 +18,13 @@ sudo chmod +x /opt/cni/bin/loopback
 
 # Create the CNI config
 sudo mkdir -p /etc/cni/net.d
-sudo tee /etc/cni/net.d/10-ftcni.conflist > /dev/null <<EOF
+sudo tee /etc/cni/net.d/10-rbati.conflist > /dev/null <<EOF
 {
   "cniVersion": "0.4.0",
-  "name": "ftcni",
+  "name": "rbati",
   "plugins": [
     {
-      "type": "ft_cni",
+      "type": "rbati-cni",
       "bridge": "cni0",
       "bridgeIP": "172.16.1.1",
       "iface": "eth1",
