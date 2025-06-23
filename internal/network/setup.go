@@ -1,7 +1,6 @@
 package network
 
 import (
-	"ft_cni/internal/logs"
 	"log"
 
 	"github.com/vishvananda/netlink"
@@ -14,10 +13,12 @@ func SetupVXLAN(name, iface string, vni int) error {
 		log.Println("[INFO] VXLAN interface already exists")
 		return nil
 	}
-
+	
+	log.Printf("[INFO] Setup VXLAN Based on Interface %v\n", iface)
 
 	ifVeth, err := netlink.LinkByName(iface)
 	if err != nil {
+		log.Printf("Couldn't Get Iface %v\n", err)
 		return err
 	}
 
@@ -37,12 +38,12 @@ func SetupVXLAN(name, iface string, vni int) error {
 	}
 
 	if err := netlink.LinkAdd(vxlan); err != nil {
-		logs.Log.Error("Couldn't add VXLAN interface", "ERROR", err)
+		log.Printf("Couldn't add VXLAN interface %v\n", err)
 		return err
 	}
 
 	if err := netlink.LinkSetUp(vxlan); err != nil {
-		logs.Log.Error("Couldn't set VXLAN interface UP", "ERROR", err)
+		log.Printf("Couldn't set VXLAN interface UP %v\n", err)
 		return err
 	}
 

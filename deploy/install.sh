@@ -22,30 +22,23 @@ sudo tee /etc/cni/net.d/10-rbati.conflist > /dev/null <<EOF
 {
   "cniVersion": "0.4.0",
   "name": "rbati",
-  "plugins": [
-    {
-      "type": "rbati-cni",
-      "bridge": "cni0",
-      "bridgeIP": "172.16.1.1",
-      "iface": "eth1",
-      "ipam": {
-        "subnet": "172.16.1.0/16",
-        "routes": [
-          {
-            "dst": "0.0.0.0/0",
-            "gw": "172.16.1.1"
-          }
-        ],
-        "dns": {
-          "nameservers": ["8.8.8.8", "1.1.1.1"],
-          "search": ["svc.cluster.local"]
-        }
+  "type": "rbati-cni",     
+  "bridge": "cni0",
+  "bridgeIP": "172.16.1.1",
+  "iface": "eth1",         
+  "ipam": {                
+    "subnet": "172.16.1.0/16",
+    "routes": [
+      {
+        "dst": "0.0.0.0/0",
+        "gw": "172.16.1.1"
       }
-    },
-    {
-      "type": "loopback"
+    ],
+    "dns": {
+      "nameservers": ["8.8.8.8", "1.1.1.1"],
+      "search": ["svc.cluster.local"]
     }
-  ]
+  }
 }
 EOF
 

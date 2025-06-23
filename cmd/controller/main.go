@@ -3,7 +3,6 @@ package main
 import (
 	"ft_cni/internal/kube"
 	"ft_cni/internal/load"
-	"ft_cni/internal/logs"
 	"ft_cni/internal/network"
 	"log"
 	"os"
@@ -19,14 +18,8 @@ const vxlanName = "rbati.1"
 
 
 func init() {
-	logs.Init("/tmp/mycni.log")
-	logs.Log.Info("Init Function | Initialized Log")
 
-	logs.Log.Info("env check")
-	configJSON = load.LoadFromFile("/etc/cni/net.d/10-ftcni.conflist")
-	logs.Log.Info("Logjson check")
-	
-
+	configJSON = load.LoadFromFile("/etc/cni/net.d/10-rbati.conflist")
 
 }
 

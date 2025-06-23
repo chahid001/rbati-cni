@@ -1,5 +1,13 @@
+FROM golang:1.25rc1-alpine3.22 AS build
+
+RUN apk add bash curl git tar
+WORKDIR /src
+COPY . /src
+
+RUN go build -o bin/rbati-agent cmd/controller/main.go
+
 FROM alpine:3.22
 
-COPY bin/rbati-agent /rbati-agent
+COPY --from=build /src/bin/rbati-agent /rbati-agent
 
 ENTRYPOINT ["/rbati-agent"]
