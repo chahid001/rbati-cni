@@ -6,32 +6,28 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 )
 
-// TODO : change values to parametres
-func EnableNat(Subnet, BridgeName string) error {
+func EnableNat(subnet, bridgeName string) error {
+    ipt, err := iptables.New()
+    if err != nil {
+        return err
+    }
 
-	ipt, err := iptables.New()
+    err = ipt.AppendUnique("nat", "POSTROUTING", "-s", subnet, "!", "-o", bridgeName, "-j", "MASQUERADE")
+    if err != nil {
+        return err
+    }
 
 
-	if err != nil {
-		return err
-	}
+    err = ipt.AppendUnique("filter", "FORWARD", "-i", bridgeName, "-j", "ACCEPT")
+    if err != nil {
+        return err
+    }
 
-	rule, err := ipt.Exists("nat", "POSTROUTING",
-		"-s", Subnet, "!", "-o", BridgeName, "-j", "MASQUERADE")
+    err = ipt.AppendUnique("filter", "FORWARD", "-o", bridgeName, "-j", "ACCEPT")
+    if err != nil {
+        return err
+    }
 
-	if err != nil {
-		return err 
-	}
-
-	if !rule {
-		err := ipt.Append("nat", "POSTROUTING",
-		"-s", Subnet, "!", "-o", BridgeName, "-j", "MASQUERADE")
-
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Println("[INFO] Enabling NAT")
-	return nil
+    log.Println("[INFO] Successfully enabled NAT and forwarding rules.")
+    return nil
 }
