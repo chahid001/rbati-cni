@@ -41,6 +41,38 @@ sudo tee /etc/cni/net.d/10-rbati.conflist > /dev/null <<EOF
   }
 }
 EOF
+echo "[INFO] Creating RBAC for node access..."
+
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rbati-agent
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rbati-agent-node-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rbati-agent-node-reader-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rbati-agent-node-reader
+subjects:
+- kind: ServiceAccount
+  name: rbati-agent
+  namespace: default
+EOF
+
 
 echo "[INFO] Applying controller DaemonSet..."
 
@@ -61,6 +93,7 @@ spec:
         app: rbati-agent
     spec:
       hostNetwork: true
+      serviceAccountName: rbati-agent
       containers:
       - name: agent
         image: schahid01/rbati-agent:latest

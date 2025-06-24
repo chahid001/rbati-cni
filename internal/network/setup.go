@@ -2,6 +2,7 @@ package network
 
 import (
 	"log"
+	"net"
 
 	"github.com/vishvananda/netlink"
 )
@@ -29,7 +30,7 @@ func SetupVXLAN(name, iface string, vni int) error {
 		},
 		VxlanId:      vni,
 		VtepDevIndex: ifVeth.Attrs().Index,
-		SrcAddr:      nil, // Funny thing the kernel will take the lead to choose it
+		SrcAddr:      net.ParseIP("192.168.56.110"),
 		Port:         4789,
 		Learning:     false, // To always sent ARP requests to be up to date
 		Proxy:        false,

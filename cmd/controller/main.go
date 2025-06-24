@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -28,6 +29,16 @@ func main() {
 	log.Printf("[INFO] Controller starting on node: %s\n", kube.GetNodeName())
 
 	network.EnableNat()
+
+	for {
+	    _, err := netlink.LinkByName("cni0")
+	    if err == nil {
+	        break
+	    }
+	    log.Println("[INFO] Waiting for CNI to be initialized...")
+	    time.Sleep(2 * time.Second)
+	}
+
 
 	config, err := rest.InClusterConfig()
     if err != nil {
