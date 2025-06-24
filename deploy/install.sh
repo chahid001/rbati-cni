@@ -18,7 +18,7 @@ sudo chmod +x /opt/cni/bin/loopback
 
 # Create the CNI config
 sudo mkdir -p /etc/cni/net.d
-sudo tee /etc/cni/net.d/10-rbati.conflist > /dev/null <<EOF
+sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
 {
   "cniVersion": "0.4.0",
   "name": "rbati",

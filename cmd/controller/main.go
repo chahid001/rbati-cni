@@ -20,7 +20,7 @@ const vxlanName = "rbati.1"
 
 func init() {
 
-	configJSON = load.LoadFromFile("/etc/cni/net.d/10-rbati.conflist")
+	configJSON = load.LoadFromFile("/etc/cni/net.d/10-rbati.conf")
 
 }
 
