@@ -28,7 +28,7 @@ func main() {
 
 	log.Printf("[INFO] Controller starting on node: %s\n", kube.GetNodeName())
 
-	network.EnableNat()
+	network.EnableNat(configJSON.IPAM.Subnet, configJSON.Bridge)
 
 	for {
 	    _, err := netlink.LinkByName("cni0")
