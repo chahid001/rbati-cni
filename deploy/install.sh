@@ -27,7 +27,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
   "bridgeIP": "172.16.1.1",
   "iface": "eth1",         
   "ipam": {                
-    "subnet": "172.16.1.0/16",
+    "subnet": "172.16.1.0/24",
     "routes": [
       {
         "dst": "0.0.0.0/0",
