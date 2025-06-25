@@ -42,7 +42,7 @@ func DEL(envMap map[string]string, config *load.CNIConfig) error {
 		return err
 	}
 
-	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db", 300)
+	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db")
 	if err != nil {
 		logs.Log.Error("Could create new IPAM subnet", config.IPAM.Subnet, "ERROR", err)
 		return err

@@ -260,7 +260,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 	}
 
 	// --------------- Create new IPAM Subnet ------------
-	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db", 300)
+	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db")
 	if err != nil {
 		logs.Log.Error("Could create new IPAM subnet", config.IPAM.Subnet, "ERROR", err)
 		return err
@@ -299,7 +299,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 			logs.Log.Info("Found Bridge IP Address at Conflist", "BRIDGE", config.Bridge)
 			ones, _ := ip_net.Mask.Size()
 			brCIDR = fmt.Sprintf("%s/%d", config.BridgeIP, ones)
-			allocatedIP, _, err := ipam.Allocate(config.BridgeIP, config.Bridge)
+			allocatedIP, _, err := ipam.Allocate(config.BridgeIP)
 			if err != nil {
 				logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface", "ERROR", err)
 				logs.Log.Info("Cleaning... Deleting Bridge", "BRIDGE", config.Bridge)
@@ -314,7 +314,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 			logs.Log.Info("No IP Address was found in Conflist for", "BRIDGE", config.Bridge)
 			logs.Log.Info("Allocating new IP Address from IPAM", "SUBNET", config.IPAM.Subnet)
 
-			allocatedIP, br_mask, err := ipam.Allocate("", config.Bridge)
+			allocatedIP, br_mask, err := ipam.Allocate("")
 			if err != nil {
 				logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface", "ERROR", err)
 				logs.Log.Info("Cleaning... Deleting Bridge", "BRIDGE", config.Bridge)
@@ -391,7 +391,7 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 
 	//--------------- Allocate IP Address for POD -----------------
 	logs.Log.Info("Allocating new IP Address for", "POD", envMap["CNI_CONTAINERID"][:4])
-	pod_ip, pod_mask, err := ipam.Allocate("", container_id)
+	pod_ip, pod_mask, err := ipam.Allocate("")
 
 	if err != nil {
 		logs.Log.Error("Couldn't Allocate IP for POD.", "ERROR", err)
