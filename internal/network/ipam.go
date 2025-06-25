@@ -147,6 +147,11 @@ func (i *IPAM) Allocate(candidate, _clientID string) (net.IP, net.IPMask, error)
 
 	for ip := ip.To4(); i.subnet.Contains(ip); incrementIP(ip) {
 
+		lastByte := ip[len(ip)-1]
+    	if lastByte == 0 || lastByte == 255 {
+    	    continue 
+    	}
+		
 		ipStr := ip.String()
 
 		isAllocated, err := i.isAllocated(ipStr)
