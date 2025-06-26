@@ -80,22 +80,22 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if isAllocated {
-			logs.Log.Error("IP already reserved !")
-			return nil, nil, fmt.Errorf("IP address %s is already reserved", candidate)
-		}
-
+        
 		newIP := net.ParseIP(candidate)
-		if i.subnet.Contains(newIP) {
-			err := i.setLease(candidate)
-			if err != nil {
-				return nil, nil, err
-			}
-			return newIP, mask, nil
-		} else {
-			logs.Log.Error("IP is not part of Subnet !")
-			return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
+        if !i.subnet.Contains(newIP) {
+             logs.Log.Error("IP is not part of Subnet !")
+             return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
+        }
+
+        if isAllocated {
+            logs.Log.Info("IP already reserved, returning success.", "IP", candidate)
+            return newIP, mask, nil
+        }
+		
+		if err := i.setLease(candidate); err != nil {
+			return nil, nil, err
 		}
+		return newIP, mask, nil
 	}
 
 	for ip := ip.To4(); i.subnet.Contains(ip); incrementIP(ip) {

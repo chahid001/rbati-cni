@@ -367,6 +367,10 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 			logs.Log.Error("Couldn't get IP for existing bridge", "ERROR", err)
 			return err
 		}
+    	if _, _, err := ipam.Allocate(brIP.String()); err != nil {
+
+    	    logs.Log.Info("Bridge IP was already reserved or has been reserved now.", "IP", brIP.String())
+    	}
 		//------------ Get the Primary IPv4 address -----------------
 		brIP = addrs[0].IP
 	}
