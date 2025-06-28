@@ -3,8 +3,8 @@ package result
 import (
 	"encoding/json"
 	"fmt"
-	"ft_cni/internal/types"
 	"os"
+	"rbati-cni/internal/types"
 )
 
 func ReturnErr(ErrObject *types.CNIError) {

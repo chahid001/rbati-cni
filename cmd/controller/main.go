@@ -1,22 +1,19 @@
 package main
 
 import (
-	"ft_cni/internal/kube"
-	"ft_cni/internal/load"
-	"ft_cni/internal/network"
+	"context"
 	"log"
-	"os"
-	"time"
+	"net"
 
-	"github.com/vishvananda/netlink"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	pb "rbati-cni/api"
+	internalipam "rbati-cni/internal/ipam"
+	"rbati-cni/internal/load"
+
+	"google.golang.org/grpc"
 )
 
 
 var configJSON *load.CNIConfig
-const vxlanName = "rbati.1"
-
 
 func init() {
 
@@ -24,53 +21,47 @@ func init() {
 
 }
 
-func main() {
+type ipamServer struct {
+	pb.UnimplementedIPAMServiceServer
+	store *internalipam.IPAM
+}
 
-	log.Printf("[INFO] Controller starting on node: %s\n", kube.GetNodeName())
-
-	network.EnableNat(configJSON.IPAM.Subnet, configJSON.Bridge)
-
-	for {
-	    _, err := netlink.LinkByName("cni0")
-	    if err == nil {
-	        break
-	    }
-	    log.Println("[INFO] Waiting for CNI to be initialized...")
-	    time.Sleep(2 * time.Second)
-	}
-
-
-	config, err := rest.InClusterConfig()
-    if err != nil {
-        log.Printf("[ERROR] Failed to get in-cluster config: %v\n", err)
-        os.Exit(1)
-    }
-
-    clientset, err := kubernetes.NewForConfig(config)
-    if err != nil {
-        log.Printf("[ERROR] Failed to create clientset: %v\n", err)
-        os.Exit(1)
-    }
-
-	err = network.SetupVXLAN(vxlanName, configJSON.IFace, 1001)
+func (s *ipamServer) AllocateIP(ctx context.Context, req *pb.AllocateRequest) (*pb.AllocateResponse, error) {
+	ip, mask, err := s.store.Allocate(req.CandidateIP)
 	if err != nil {
-		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
-		os.Exit(1)
+		return nil, err
+	}
+	return &pb.AllocateResponse{
+		Ip:   ip.String(),
+		Mask: net.IP(mask).String(),
+	}, nil
+}
+
+func (s *ipamServer) ReleaseIP(ctx context.Context, req *pb.ReleaseRequest) (*pb.ReleaseResponse, error) {
+	err := s.store.Release(req.Ip)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ReleaseResponse{}, nil
+}
+
+func main() {
+	listener, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	ticker := time.NewTicker(20 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		
-		log.Println("[INFO] Syncing VXLAN peer FDB entries...")
-		err := kube.UpdateFDBEntry(clientset, vxlanName)
-		if err != nil {
-			log.Printf("[ERROR] Failed to update FDB entries: %v\n", err)
-		}
-		log.Println("[INFO] Sync complete.")
-		<-ticker.C
+	ipamDB, err := internalipam.NewIPAM(configJSON.IPAM.Subnet, "/var/lib/cni/central_ipam.db")
+	if err != nil {
+		log.Fatalf("Failed to start IPAM: %v", err)
 	}
+	defer ipamDB.Close()
 
+	server := grpc.NewServer()
+	pb.RegisterIPAMServiceServer(server, &ipamServer{store: ipamDB})
 
+	log.Println("IPAM controller running on port 50051")
+	if err := server.Serve(listener); err != nil {
+		log.Fatalf("Server crashed: %v", err)
+	}
 }

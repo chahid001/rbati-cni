@@ -3,9 +3,9 @@ package result
 import (
 	"encoding/json"
 	"fmt"
-	"ft_cni/internal/logs"
-	"ft_cni/internal/types"
 	"os"
+	"rbati-cni/internal/logs"
+	"rbati-cni/internal/types"
 )
 
 func ReturnAdd(CNIResult *types.CNIResult) error {

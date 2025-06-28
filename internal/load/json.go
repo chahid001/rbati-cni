@@ -2,9 +2,9 @@ package load
 
 import (
 	"encoding/json"
-	"ft_cni/internal/logs"
 	"io"
 	"os"
+	"rbati-cni/internal/logs"
 )
 
 type DNSConfig struct {

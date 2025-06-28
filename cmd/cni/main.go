@@ -1,19 +1,28 @@
 package main
 
 import (
-	"ft_cni/internal/discovery"
-	"ft_cni/internal/load"
-	"ft_cni/internal/logs"
-	"ft_cni/internal/result"
-	"ft_cni/internal/types"
 	"os"
+	"rbati-cni/internal/discovery"
+	"rbati-cni/internal/load"
+	"rbati-cni/internal/logs"
+	"rbati-cni/internal/result"
+	"rbati-cni/internal/types"
+	"time"
+	pb "rbati-cni/api" 
+
+	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-
-
 var (
-	envMap 	map[string]string
+	envMap     map[string]string
 	configJSON *load.CNIConfig
+)
+
+const (
+	vxlanName 	= "rbati.1"
+	bridgeName	= "rbati.0"
 )
 
 func init() {
@@ -27,33 +36,65 @@ func init() {
 
 func main() {
 
+	bridge := bridgeName
+
+	if configJSON.Bridge != "" {
+		bridge = configJSON.Bridge
+	}
+
+	for {
+		_, errBR := netlink.LinkByName(bridge)
+		_, errVX := netlink.LinkByName("rbati.1")
+		if errBR == nil && errVX == nil {
+			break
+		}
+		logs.Log.Info("Waiting for CNI Agent to be initialized...")
+		time.Sleep(2 * time.Second)
+	}
+
 	cmd := envMap["CNI_COMMAND"]
+
+
+
+	cnx, err := grpc.NewClient(
+		"localhost:50051", 
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logs.Log.Error("Could not connect with IPAM controller")
+		os.Exit(1)
+	}
+	defer cnx.Close()
+	client := pb.NewIPAMServiceClient(cnx)
+
+
+
 	
+
 	if cmd == "ADD" || cmd == "DEL" || cmd == "CHECK" {
 		if discovery.CheckVersions(configJSON.CNIVersion) == false {
-			
-			cniErr := types.CNIError {
+
+			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
-				Code: 4,
-				Msg: "Incompatible CNI version",
+				Code:       4,
+				Msg:        "Incompatible CNI version",
 			}
 
 			result.ReturnErr(&cniErr)
 
-			os.Exit(1)			
+			os.Exit(1)
 		}
 	}
 
-	switch cmd {		
+	switch cmd {
 
 	case "ADD":
-		if err := discovery.Add(envMap, configJSON); err != nil {
-			
-			cniErr := types.CNIError {
+		if err := discovery.Add(envMap, configJSON, bridge, client); err != nil {
+
+			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
-				Code: 100,
-				Msg: "Failed in ADD operation.",
-				Details: err.Error(),
+				Code:       100,
+				Msg:        "Failed in ADD operation.",
+				Details:    err.Error(),
 			}
 
 			result.ReturnErr(&cniErr)
@@ -61,15 +102,15 @@ func main() {
 			os.Exit(1)
 		}
 		os.Exit(0)
-	
+
 	case "DEL":
-		if err := discovery.DEL(envMap, configJSON); err != nil {
-			
-			cniErr := types.CNIError {
+		if err := discovery.DEL(envMap, configJSON, client); err != nil {
+
+			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
-				Code: 100,
-				Msg: "Failed in DEL operation.",
-				Details: err.Error(),
+				Code:       100,
+				Msg:        "Failed in DEL operation.",
+				Details:    err.Error(),
 			}
 
 			result.ReturnErr(&cniErr)
@@ -80,39 +121,37 @@ func main() {
 
 	case "CHECK":
 		if err := discovery.CHECK(envMap, configJSON); err != nil {
-			
-			cniErr := types.CNIError {
+
+			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
-				Code: 100,
-				Msg: "Failed in CHECK operation.",
-				Details: err.Error(),
+				Code:       100,
+				Msg:        "Failed in CHECK operation.",
+				Details:    err.Error(),
 			}
 
 			result.ReturnErr(&cniErr)
 
 			os.Exit(1)
 		}
-		os.Exit(0)	
+		os.Exit(0)
 
 	case "VERSION":
 
 		if err := discovery.VERSION(); err != nil {
-			
-			cniErr := types.CNIError {
+
+			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
-				Code: 100,
-				Msg: "Failed in VERSION operation.",
-				Details: err.Error(),
+				Code:       100,
+				Msg:        "Failed in VERSION operation.",
+				Details:    err.Error(),
 			}
 
 			result.ReturnErr(&cniErr)
 
 			os.Exit(1)
 		}
-		os.Exit(0)		
+		os.Exit(0)
 
 	}
 
 }
-
-

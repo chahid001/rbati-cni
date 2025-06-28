@@ -2,9 +2,9 @@ package network
 
 import (
 	"fmt"
-	"ft_cni/internal/logs"
 	"net"
 	"os"
+	"rbati-cni/internal/logs"
 	"sync"
 
 	bolt "go.etcd.io/bbolt"
@@ -26,7 +26,7 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 		return nil, err
 	}
 
-	if err := os.MkdirAll("/var/lib/cni/ftcni", 0755); err != nil {
+	if err := os.MkdirAll("/var/lib/cni", 0755); err != nil {
 		return nil, err
 	}
 
@@ -80,18 +80,18 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-        
-		newIP := net.ParseIP(candidate)
-        if !i.subnet.Contains(newIP) {
-             logs.Log.Error("IP is not part of Subnet !")
-             return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
-        }
 
-        if isAllocated {
-            logs.Log.Info("IP already reserved, returning success.", "IP", candidate)
-            return newIP, mask, nil
-        }
-		
+		newIP := net.ParseIP(candidate)
+		if !i.subnet.Contains(newIP) {
+			logs.Log.Error("IP is not part of Subnet !")
+			return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
+		}
+
+		if isAllocated {
+			logs.Log.Info("IP already reserved, returning success.", "IP", candidate)
+			return newIP, mask, nil
+		}
+
 		if err := i.setLease(candidate); err != nil {
 			return nil, nil, err
 		}

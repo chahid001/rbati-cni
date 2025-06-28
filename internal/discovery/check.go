@@ -1,10 +1,10 @@
 package discovery
 
 import (
-	"ft_cni/internal/load"
-	"ft_cni/internal/logs"
-	"ft_cni/internal/utils"
 	"net"
+	"rbati-cni/internal/load"
+	"rbati-cni/internal/logs"
+	"rbati-cni/internal/utils"
 	"runtime"
 
 	"github.com/vishvananda/netlink"

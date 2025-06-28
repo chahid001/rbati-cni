@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"ft_cni/internal/logs"
+	"rbati-cni/internal/logs"
 	"runtime"
 
 	"github.com/vishvananda/netlink"

@@ -1,15 +1,17 @@
 package discovery
 
 import (
+	"context"
 	"fmt"
-	"ft_cni/internal/load"
-	"ft_cni/internal/logs"
-	"ft_cni/internal/network"
-	"ft_cni/internal/result"
-	"ft_cni/internal/types"
+	"rbati-cni/internal/load"
+	"rbati-cni/internal/logs"
+	"rbati-cni/internal/result"
+	"rbati-cni/internal/types"
 
-	"ft_cni/internal/utils"
+	pb "rbati-cni/api"
+
 	"net"
+	"rbati-cni/internal/utils"
 	"runtime"
 
 	"github.com/vishvananda/netlink"
@@ -140,7 +142,7 @@ func SettingPodEnd(
 
 		gw := net.ParseIP(bridgeIP)
 
-		if routes.Gw != "" {
+		if routes.Gw != "" { // in each route, if gw is empty, then gw is the bridge
 			gw = net.ParseIP(routes.Gw)
 		}
 
@@ -244,7 +246,7 @@ func LoadDNS(DNS *load.DNSConfig, CNIResult *types.CNIResult) {
 
 }
 
-func Add(envMap map[string]string, config *load.CNIConfig) error {
+func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, client pb.IPAMServiceClient) error {
 
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("----------------------------")
@@ -259,121 +261,22 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		Routes:     make([]types.Route, 0),
 	}
 
-	// --------------- Create new IPAM Subnet ------------
-	ipam, err := network.NewIPAM(config.IPAM.Subnet, "/var/lib/cni/ftcni/ipam.db")
+
+	// --------------- Get Bridge ------------
+
+	bridge, err := netlink.LinkByName(bridgeName)
 	if err != nil {
-		logs.Log.Error("Could create new IPAM subnet", config.IPAM.Subnet, "ERROR", err)
+		logs.Log.Error("Couldn't find bridge", "ERROR", err)
+	}
+
+	addrs, err := netlink.AddrList(bridge, netlink.FAMILY_V4)
+	if err != nil || len(addrs) == 0 {
+		logs.Log.Error("Couldn't get IP for existing bridge", "ERROR", err)
 		return err
 	}
-	defer ipam.Close()
 
-	// --------------- Parse IPAM Subnet CIDR ------------
-	_, ip_net, err := net.ParseCIDR(config.IPAM.Subnet)
-	if err != nil {
-		logs.Log.Error("Could create parse subnet CIDR", config.IPAM.Subnet, "ERROR", err)
-		return err
-	}
-
-	// ----------- Attempt to find the bridge --------------
-	logs.Log.Info("Searching for Bridge", "BRIDGE", config.Bridge)
-	bridge, err := netlink.LinkByName(config.Bridge)
-	var brIP net.IP
-
-	if err != nil { // --------- Bridge does NOT exist, create it ----------------
-		logs.Log.Info("Bridge not found. Creating it......", "BRIDGE", config.Bridge)
-		br := &netlink.Bridge{
-			LinkAttrs: netlink.LinkAttrs{
-				Name: config.Bridge,
-			},
-		}
-
-		if err := netlink.LinkAdd(br); err != nil {
-			logs.Log.Error("Couldn't Add Bridge Interface", "ERROR", err)
-			return err
-		}
-		logs.Log.Info("Bridge created succefully", "BRIDGE", config.Bridge)
-		// ------------- IP Allocation for NEW bridge ----------
-		var brCIDR string
-		logs.Log.Info("Attaching IP Address for", "BRIDGE", config.Bridge)
-		if config.BridgeIP != "" {
-			logs.Log.Info("Found Bridge IP Address at Conflist", "BRIDGE", config.Bridge)
-			ones, _ := ip_net.Mask.Size()
-			brCIDR = fmt.Sprintf("%s/%d", config.BridgeIP, ones)
-			allocatedIP, _, err := ipam.Allocate(config.BridgeIP)
-			if err != nil {
-				logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface", "ERROR", err)
-				logs.Log.Info("Cleaning... Deleting Bridge", "BRIDGE", config.Bridge)
-				if err := netlink.LinkDel(br); err != nil {
-					logs.Log.Error("Couldn't delete Bridge", "ERROR", err)
-				}
-				return err
-			}
-			brIP = allocatedIP
-			logs.Log.Info("IP Address is allocated for", "BRIDGE", config.Bridge)
-		} else {
-			logs.Log.Info("No IP Address was found in Conflist for", "BRIDGE", config.Bridge)
-			logs.Log.Info("Allocating new IP Address from IPAM", "SUBNET", config.IPAM.Subnet)
-
-			allocatedIP, br_mask, err := ipam.Allocate("")
-			if err != nil {
-				logs.Log.Error("Couldn't Allocate specified IP for Bridge Interface", "ERROR", err)
-				logs.Log.Info("Cleaning... Deleting Bridge", "BRIDGE", config.Bridge)
-				if err := netlink.LinkDel(br); err != nil {
-					logs.Log.Error("Couldn't delete Bridge", "ERROR", err)
-				}
-				return err
-			}
-			ones, _ := br_mask.Size()
-			brCIDR = fmt.Sprintf("%s/%d", allocatedIP.String(), ones)
-			logs.Log.Info("IP Address is allocated for", "BRIDGE", config.Bridge)
-			brIP = allocatedIP
-		}
-
-		addr, err := netlink.ParseAddr(brCIDR)
-		if err != nil {
-			logs.Log.Error("Couldn't Parse Bridge IP Address", "ERROR", err)
-		}
-		if err := netlink.AddrAdd(br, addr); err != nil {
-			logs.Log.Error("Couldn't assign IP to Bridge interface", "ERROR", err)
-			logs.Log.Info("Cleaning.......Deleting Bridge Interafce and releasing IP address")
-			if err := netlink.LinkDel(br); err != nil {
-				logs.Log.Error("Couldn't delete Bridge", "ERROR", err)
-			}
-			if err := ipam.Release(brIP.String()); err != nil {
-				logs.Log.Error("Couldn't Release IP Address", "ERROR", err)
-			}
-			return err
-		}
-
-		if err := netlink.LinkSetUp(br); err != nil {
-			logs.Log.Error("Couldn't set Bridge UP", "ERROR", err)
-			logs.Log.Info("Cleaning.......Deleting Bridge Interafce and releasing IP address")
-			if err := netlink.LinkDel(br); err != nil {
-				logs.Log.Error("Couldn't delete Bridge", "ERROR", err)
-			}
-			if err := ipam.Release(brIP.String()); err != nil {
-				logs.Log.Error("Couldn't Release IP Address", "ERROR", err)
-			}
-			return err
-		}
-		//---------- Update bridge variable with the new link -------------------
-		bridge = br
-
-	} else { // Bridge ALREADY exists
-		logs.Log.Info("Bridge already exists. Getting its configuration.", "BRIDGE", config.Bridge)
-
-		addrs, err := netlink.AddrList(bridge, netlink.FAMILY_V4)
-		if err != nil || len(addrs) == 0 {
-			logs.Log.Error("Couldn't get IP for existing bridge", "ERROR", err)
-			return err
-		}
-    	if _, _, err := ipam.Allocate(brIP.String()); err != nil {
-
-    	    logs.Log.Info("Bridge IP was already reserved or has been reserved now.", "IP", brIP.String())
-    	}
-		//------------ Get the Primary IPv4 address -----------------
-		brIP = addrs[0].IP
-	}
+	//------------ Get the Primary IPv4 address -----------------
+	brIP := addrs[0].IP
 
 	//--------------- Setting name for Host Veth end -----------------
 	container_id := envMap["CNI_CONTAINERID"][:4]
@@ -395,7 +298,11 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 
 	//--------------- Allocate IP Address for POD -----------------
 	logs.Log.Info("Allocating new IP Address for", "POD", envMap["CNI_CONTAINERID"][:4])
-	pod_ip, pod_mask, err := ipam.Allocate("")
+
+	resp, err := client.AllocateIP(context.Background(), &pb.AllocateRequest{
+		Pod: envMap["CNI_CONTAINERID"][:4],
+		CandidateIP: "",
+	})
 
 	if err != nil {
 		logs.Log.Error("Couldn't Allocate IP for POD.", "ERROR", err)
@@ -403,8 +310,8 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 	}
 
 	// Getting Subnet mask as String
-	ones, _ := pod_mask.Size()
-	cidr := fmt.Sprintf("%s/%d", pod_ip.String(), ones)
+	mask := net.IPMask(net.ParseIP(resp.Mask).To4())
+	cidr := fmt.Sprintf("%s/%d", resp.Ip, mask)
 
 	//------------------- Setting POD End ----------------------
 	if err := SettingPodEnd(
@@ -419,9 +326,14 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
-		if err := ipam.Release(pod_ip.String()); err != nil {
+
+		_, err := client.ReleaseIP(context.Background(), &pb.ReleaseRequest{
+			Ip: resp.Ip,
+		})
+		if err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 		}
+		logs.Log.Error("Released POD IP", "IP", resp.Ip)
 		logs.Log.Error("Setting POD end exited with error 1.")
 		return err
 	}
@@ -430,9 +342,13 @@ func Add(envMap map[string]string, config *load.CNIConfig) error {
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
-		if err := ipam.Release(pod_ip.String()); err != nil {
+		_, err := client.ReleaseIP(context.Background(), &pb.ReleaseRequest{
+			Ip: resp.Ip,
+		})
+		if err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 		}
+		logs.Log.Error("Released POD IP", "IP", resp.Ip)
 		logs.Log.Error("Setting Host end exited with error 1.")
 		return err
 	}
