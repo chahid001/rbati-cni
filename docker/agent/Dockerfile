@@ -5,7 +5,7 @@ RUN apk add --no-cache bash curl git tar
 WORKDIR /src
 COPY . /src
 
-RUN go build -o bin/rbati-agent cmd/controller/main.go
+RUN go build -o bin/rbati-agent cmd/agent/main.go
 
 FROM alpine:3.22
 

@@ -1,0 +1,14 @@
+FROM golang:1.25rc1-alpine3.22 AS build
+
+RUN apk add --no-cache bash curl git tar
+
+WORKDIR /src
+COPY . /src
+
+RUN go build -o bin/rbati-controller cmd/controller/main.go
+
+FROM alpine:3.22
+
+COPY --from=build /src/bin/rbati-controller /rbati-controller
+
+ENTRYPOINT ["/rbati-controller"]

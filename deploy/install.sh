@@ -13,8 +13,8 @@ sudo cp "$PLUGIN_BIN" /opt/cni/bin/
 sudo chmod +x /opt/cni/bin/$PLUGIN_NAME
 
 # Install loopback plugin from K3s
-sudo cp /var/lib/rancher/k3s/data/f10c229b8445ff9999c26495950a5c8b2e08fd13f1889d38f994edeebf026236/bin/loopback /opt/cni/bin/
-sudo chmod +x /opt/cni/bin/loopback
+sudo cp /var/lib/rancher/k3s/data/*/bin/loopback /opt/cni/bin/ || echo "[WARN] Loopback plugin not found"
+sudo chmod +x /opt/cni/bin/loopback || true
 
 # Create the CNI config
 sudo mkdir -p /etc/cni/net.d
@@ -23,14 +23,9 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
   "cniVersion": "0.4.0",
   "name": "rbati",
   "type": "rbati-cni",     
-  "iface": "eth1",         
+  "iface": "eth1",
   "ipam": {           
     "subnet": "172.16.1.0/24",
-    "routes": [
-      {
-        "dst": "0.0.0.0/0",
-      }
-    ],
     "dns": {
       "nameservers": ["8.8.8.8", "1.1.1.1"],
       "search": ["svc.cluster.local"]
@@ -38,6 +33,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
   }
 }
 EOF
+
 echo "[INFO] Creating RBAC for node access..."
 
 kubectl apply -f - <<EOF
@@ -45,7 +41,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rbati-agent
-  namespace: default
+  namespace: kube-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rbati-controller
+  namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -67,17 +69,17 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rbati-agent
-  namespace: default
+  namespace: kube-system
 EOF
 
-
-echo "[INFO] Applying controller DaemonSet..."
+echo "[INFO] Deploying agent (DaemonSet)..."
 
 kubectl apply -f - <<EOF
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: rbati-agent
+  namespace: kube-system
   labels:
     app: rbati-agent
 spec:
@@ -95,17 +97,17 @@ spec:
       - name: agent
         image: schahid01/rbati-agent:latest
         securityContext:
-          privileged: true  
-        volumeMounts:
-        - name: cniconf
-          mountPath: /etc/cni/net.d
-        - name: cni-bin
-          mountPath: /opt/cni/bin
+          privileged: true
         env:
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        volumeMounts:
+        - name: cniconf
+          mountPath: /etc/cni/net.d
+        - name: cni-bin
+          mountPath: /opt/cni/bin
       volumes:
       - name: cniconf
         hostPath:
@@ -113,6 +115,45 @@ spec:
       - name: cni-bin
         hostPath:
           path: /opt/cni/bin
+EOF
+
+echo "[INFO] Deploying controller (Deployment + Service)..."
+
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: rbati-controller
+  namespace: kube-system
+spec:
+  selector:
+    app: rbati-controller
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: 50051
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rbati-controller
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rbati-controller
+  template:
+    metadata:
+      labels:
+        app: rbati-controller
+    spec:
+      serviceAccountName: rbati-controller
+      containers:
+      - name: controller
+        image: schahid01/rbati-controller:latest
+        ports:
+        - containerPort: 50051
 EOF
 
 echo "[DONE] Installation complete."
