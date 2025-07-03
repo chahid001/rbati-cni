@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	pb "rbati-cni/api"
 	"rbati-cni/internal/discovery"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/logs"
 	"rbati-cni/internal/result"
 	"rbati-cni/internal/types"
 	"time"
-	pb "rbati-cni/api" 
 
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
@@ -55,9 +56,10 @@ func main() {
 	cmd := envMap["CNI_COMMAND"]
 
 
+	controllerIP := fmt.Sprintf("%s:50051", configJSON.IFaceIP)
 
 	cnx, err := grpc.NewClient(
-		"rbati-controller.kube-system.svc.cluster.local:50051", 
+		controllerIP, 
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logs.Log.Error("Could not connect with IPAM controller")

@@ -24,6 +24,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
   "name": "rbati",
   "type": "rbati-cni",     
   "iface": "eth1",
+  "ifaceIP": "192.168.56.110",
   "ipam": {           
     "subnet": "172.16.1.0/24",
     "dns": {
@@ -87,6 +88,7 @@ spec:
     spec:
       hostNetwork: true
       serviceAccountName: rbati-agent
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: agent
         image: schahid01/rbati-agent:latest

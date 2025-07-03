@@ -25,7 +25,6 @@ func GetNodeName() string {
 
 }
 
-
 func GetInternalIP(node corev1.Node) net.IP {
 
 	for _, addr := range node.Status.Addresses {
@@ -38,6 +37,8 @@ func GetInternalIP(node corev1.Node) net.IP {
 
 	return nil
 }
+
+
 
 func AddFDBEntry(vxlan netlink.Link, remoteIP net.IP) error {
 
