@@ -148,8 +148,22 @@ spec:
       containers:
       - name: controller
         image: schahid01/rbati-controller:latest
+        securityContext:
+          privileged: true
         ports:
         - containerPort: 50051
+        volumeMounts:
+        - name: cniconf
+          mountPath: /etc/cni/net.d
+        - name: cni-bin
+          mountPath: /opt/cni/bin
+      volumes:
+      - name: cniconf
+        hostPath:
+          path: /etc/cni/net.d
+      - name: cni-bin
+        hostPath:
+          path: /opt/cni/bin
 EOF
 
 echo "[DONE] Installation complete."
