@@ -43,12 +43,6 @@ metadata:
   name: rbati-agent
   namespace: kube-system
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rbati-controller
-  namespace: kube-system
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -148,7 +142,9 @@ spec:
       labels:
         app: rbati-controller
     spec:
-      serviceAccountName: rbati-controller
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: rbati-agent
       containers:
       - name: controller
         image: schahid01/rbati-controller:latest
