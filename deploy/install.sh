@@ -52,6 +52,9 @@ rules:
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -85,6 +88,8 @@ spec:
     metadata:
       labels:
         app: rbati-agent
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/agent: unconfined
     spec:
       hostNetwork: true
       serviceAccountName: rbati-agent
