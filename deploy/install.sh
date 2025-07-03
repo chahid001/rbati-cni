@@ -102,8 +102,6 @@ spec:
           mountPath: /etc/cni/net.d
         - name: cni-bin
           mountPath: /opt/cni/bin
-        - name: ipam-db
-          mountPath: /var/lib/cni
       volumes:
       - name: cniconf
         hostPath:
@@ -111,10 +109,6 @@ spec:
       - name: cni-bin
         hostPath:
           path: /opt/cni/bin
-      - name: ipam-db
-        hostPath:
-          path: /var/lib/rbati-cni
-          type: DirectoryOrCreate
 EOF
 
 echo "[INFO] Deploying controller (Deployment + Service)..."
@@ -163,6 +157,8 @@ spec:
           mountPath: /etc/cni/net.d
         - name: cni-bin
           mountPath: /opt/cni/bin
+        - name: ipam-db
+          mountPath: /var/lib/cni
       volumes:
       - name: cniconf
         hostPath:
@@ -170,6 +166,10 @@ spec:
       - name: cni-bin
         hostPath:
           path: /opt/cni/bin
+      - name: ipam-db
+        hostPath:
+          path: /var/lib/rbati-cni
+          type: DirectoryOrCreate
 EOF
 
 echo "[DONE] Installation complete."
