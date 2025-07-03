@@ -30,16 +30,25 @@ func bridgeCleanUP(bridge netlink.Link, ip string, client pb.IPAMServiceClient, 
 func SetupBridge(name, ip , subnet string, client pb.IPAMServiceClient) error {
 
 	log.Printf("[INFO] Creating Bridge %v\n", name)
+    
+	bridge, err := netlink.LinkByName(name)
+    if err != nil {
 
-	bridge := &netlink.Bridge{
-		LinkAttrs: netlink.LinkAttrs{
-			Name: name,
-		},
-	}
-
-	if err := netlink.LinkAdd(bridge); err != nil {
-        log.Printf("[ERROR] Could not create bridge %s: %v\n", name, err)
-        return err
+        if _, ok := err.(netlink.LinkNotFoundError); ok {
+            log.Printf("[INFO] Bridge %s not found. Creating it.\n", name)
+            la := netlink.LinkAttrs{Name: name}
+            newBridge := &netlink.Bridge{LinkAttrs: la}
+            if err := netlink.LinkAdd(newBridge); err != nil {
+                log.Printf("[ERROR] Could not create bridge %s: %v\n", name, err)
+                return err
+            }
+            bridge = newBridge 
+        } else {
+            log.Printf("[ERROR] Failed to find bridge %s: %v\n", name, err)
+            return err
+        }
+    } else {
+        log.Printf("[INFO] Bridge %s already exists. Using existing device.\n", name)
     }
 
 	resp, err := client.AllocateIP(context.Background(), &pb.AllocateRequest{
