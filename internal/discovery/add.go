@@ -146,8 +146,12 @@ func SettingPodEnd(
 			gw = net.ParseIP(routes.Gw)
 		}
 
-		_, dst, _ := net.ParseCIDR(routes.Dst)
+		_, dst, _ := net.ParseCIDR("0.0.0.0/0") // Default route
 
+		if routes.Dst != "" {
+			_, dst, _ = net.ParseCIDR(routes.Dst)
+		}
+		
 		route := &netlink.Route{
 			LinkIndex: vethInPod.Attrs().Index,
 			Gw:        gw,
@@ -160,8 +164,8 @@ func SettingPodEnd(
 		}
 
 		CNIResult.Routes = append(CNIResult.Routes, types.Route{
-			Dst: routes.Dst,
-			GW:  routes.Gw,
+			Dst: dst.String(),
+			GW:  gw.String(),
 		})
 	}
 
@@ -311,7 +315,10 @@ func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, cl
 
 	// Getting Subnet mask as String
 	mask := net.IPMask(net.ParseIP(resp.Mask).To4())
-	cidr := fmt.Sprintf("%s/%d", resp.Ip, mask)
+
+	maskLen, _ := mask.Size()
+
+	cidr := fmt.Sprintf("%s/%d", resp.Ip, maskLen)
 
 	//------------------- Setting POD End ----------------------
 	if err := SettingPodEnd(

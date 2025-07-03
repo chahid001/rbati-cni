@@ -42,7 +42,7 @@ func main() {
 		bridge = configJSON.Bridge
 	}
 
-	for {
+	for { // Waiting for Bridge and Vxlan interfaces to be created
 		_, errBR := netlink.LinkByName(bridge)
 		_, errVX := netlink.LinkByName("rbati.1")
 		if errBR == nil && errVX == nil {
