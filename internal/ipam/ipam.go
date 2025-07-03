@@ -44,17 +44,28 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 }
 
 func (i *IPAM) isAllocated(ip string) (bool, error) {
-	return i.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-		if b == nil {
-			return nil
-		}
-		data := b.Get([]byte(ip))
-		if data == nil {
-			return nil
-		}
-		return fmt.Errorf("IP %s is allocated", ip)
-	}) == nil, nil
+    var allocated bool
+    err := i.db.View(func(tx *bolt.Tx) error {
+        b := tx.Bucket([]byte(bucketName))
+        if b == nil {
+            // Bucket doesn't exist, so no IPs are allocated yet
+            allocated = false
+            return nil
+        }
+        // If Get returns a value, the IP is allocated
+        if b.Get([]byte(ip)) != nil {
+            allocated = true
+        } else {
+            allocated = false
+        }
+        return nil
+    })
+
+    if err != nil {
+        return false, err // Return any error from accessing the database
+    }
+
+    return allocated, nil
 }
 
 func (i *IPAM) setLease(ip string) error {
