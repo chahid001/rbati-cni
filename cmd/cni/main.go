@@ -44,7 +44,7 @@ func main() {
 
 	for { // Waiting for Bridge and Vxlan interfaces to be created
 		_, errBR := netlink.LinkByName(bridge)
-		_, errVX := netlink.LinkByName("rbati.1")
+		_, errVX := netlink.LinkByName(vxlanName)
 		if errBR == nil && errVX == nil {
 			break
 		}

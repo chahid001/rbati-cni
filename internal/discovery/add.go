@@ -138,6 +138,29 @@ func SettingPodEnd(
 
 	//------------------- Routing ------------------------
 
+	if len(Routes) == 0 {
+		logs.Log.Info("No routes specified in config, adding default route to", "GW", bridgeIP)
+
+		gw := net.ParseIP(bridgeIP)
+		_, dst, _ := net.ParseCIDR("0.0.0.0/0")
+
+		route := &netlink.Route{
+			LinkIndex: vethInPod.Attrs().Index,
+			Gw:        gw,
+			Dst:       dst,
+		}
+
+		if err := netlink.RouteAdd(route); err != nil {
+			logs.Log.Error("Couldn't Add fallback default route", "ERROR", err)
+			return err
+		}
+		
+		CNIResult.Routes = append(CNIResult.Routes, types.Route{
+			Dst: dst.String(),
+			GW:  gw.String(),
+		})
+	}
+
 	for _, routes := range Routes {
 
 		gw := net.ParseIP(bridgeIP)
