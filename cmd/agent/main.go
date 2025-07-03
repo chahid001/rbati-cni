@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"rbati-cni/internal/kube"
@@ -9,7 +10,7 @@ import (
 	"time"
 
 	pb "rbati-cni/api"
-	
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/kubernetes"
@@ -38,9 +39,10 @@ func main() {
 	if configJSON.Bridge != "" {
 		bridge = configJSON.Bridge
 	}
-
+	
+	controllerIP := fmt.Sprintf("%s:50051", configJSON.IFaceIP)
 	cnx, err := grpc.NewClient(
-		"rbati-controller.kube-system.svc.cluster.local:50051", 
+		controllerIP, 
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Println("Could not connect with IPAM controller")
