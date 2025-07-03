@@ -37,6 +37,11 @@ func SetupBridge(name, ip , subnet string, client pb.IPAMServiceClient) error {
 		},
 	}
 
+	if err := netlink.LinkAdd(bridge); err != nil {
+        log.Printf("[ERROR] Could not create bridge %s: %v\n", name, err)
+        return err
+    }
+
 	resp, err := client.AllocateIP(context.Background(), &pb.AllocateRequest{
 		Pod: name,
 		CandidateIP: ip,
