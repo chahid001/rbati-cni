@@ -40,7 +40,7 @@ func main() {
 	}
 
 	cnx, err := grpc.NewClient(
-		"localhost:50051", 
+		"rbati-controller.kube-system.svc.cluster.local:50051", 
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Println("Could not connect with IPAM controller")
