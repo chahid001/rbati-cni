@@ -7,10 +7,22 @@ import (
 )
 
 
+
 func EnableNat(subnet, bridgeName string) error {
     ipt, err := iptables.New()
     if err != nil {
         log.Printf("[ERROR] NAT Error: %v", err)
+        return err
+    }
+
+    err = ipt.AppendUnique(
+        "mangle",
+        "FORWARD",
+        "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
+        "-j", "TCPMSS", "--set-mss", "1410",
+    )
+    if err != nil {
+        log.Printf("[ERROR] NAT Error: Failed to add TCPMSS clamp rule: %v", err)
         return err
     }
 
