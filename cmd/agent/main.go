@@ -40,7 +40,7 @@ func main() {
 		bridge = configJSON.Bridge
 	}
 	
-	controllerIP := fmt.Sprintf("%s:50051", configJSON.IFaceIP)
+	controllerIP := fmt.Sprintf("%s:50051", configJSON.ControllerIP)
 	cnx, err := grpc.NewClient(
 		controllerIP, 
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -71,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = network.SetupVXLAN(vxlanName, configJSON.IFace, configJSON.IFaceIP, 1001)
+	err = network.SetupVXLAN(vxlanName, configJSON.IFace, 1001)
 	if err != nil {
 		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
 		os.Exit(1)

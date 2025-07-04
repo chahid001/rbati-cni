@@ -26,14 +26,14 @@ type IPAMConfig struct {
 }
 
 type CNIConfig struct {
-	CNIVersion string      `json:"cniVersion"`
-	Name       string      `json:"name"`
-	Type       string      `json:"type"`
-	Bridge     string      `json:"bridge,omitempty"`
-	BridgeIP   string      `json:"bridgeIP,omitempty"`
-	IFace      string      `json:"iface"`
-	IFaceIP	   string	   `json:"ifaceIP"`
-	IPAM       *IPAMConfig `json:"ipam,omitempty"`
+	CNIVersion 			string      `json:"cniVersion"`
+	Name       			string      `json:"name"`
+	Type       			string      `json:"type"`
+	Bridge     			string      `json:"bridge,omitempty"`
+	BridgeIP   			string      `json:"bridgeIP,omitempty"`
+	IFace      			string      `json:"iface"`
+	ControllerIP	   	string	   	`json:"controllerIP"`
+	IPAM       			*IPAMConfig `json:"ipam,omitempty"`
 }
 
 // For CNI plugin (stdin use)

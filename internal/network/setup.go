@@ -95,7 +95,7 @@ func SetupBridge(name, ip , subnet string, client pb.IPAMServiceClient) error {
 	return nil  
 }
 
-func SetupVXLAN(name, iface, ifaceIP string, vni int) error {
+func SetupVXLAN(name, iface string, vni int) error {
 
 	_, err := netlink.LinkByName(name)
 	if err == nil {
@@ -111,6 +111,13 @@ func SetupVXLAN(name, iface, ifaceIP string, vni int) error {
 		return err
 	}
 
+	log.Printf("[INFO] Looking for default IP on Interface %v\n", iface)
+	addr, err := netlink.AddrList(ifVeth, netlink.FAMILY_V4)
+	if err != nil {
+		log.Printf("Couldn't Get IPs from Iface %v\n", err)
+		return err
+	}
+
 
 	vxlan := &netlink.Vxlan{
 
@@ -119,7 +126,7 @@ func SetupVXLAN(name, iface, ifaceIP string, vni int) error {
 		},
 		VxlanId:      vni,
 		VtepDevIndex: ifVeth.Attrs().Index,
-		SrcAddr:      net.ParseIP(ifaceIP), // I feel betrayed, No the vxlan wont work with NIL
+		SrcAddr:      addr[0].IP, // I feel betrayed, No the vxlan wont work with NIL
 		Port:         4789,
 		Learning:     false, // To always sent ARP requests to be up to date
 		Proxy:        false,

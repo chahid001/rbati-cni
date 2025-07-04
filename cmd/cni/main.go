@@ -56,7 +56,7 @@ func main() {
 	cmd := envMap["CNI_COMMAND"]
 
 
-	controllerIP := fmt.Sprintf("%s:50051", configJSON.IFaceIP)
+	controllerIP := fmt.Sprintf("%s:50051", configJSON.ControllerIP)
 
 	cnx, err := grpc.NewClient(
 		controllerIP, 
