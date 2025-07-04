@@ -7,6 +7,7 @@ import (
 )
 
 
+// init.go
 
 func EnableNat(subnet, bridgeName string) error {
     ipt, err := iptables.New()
@@ -16,8 +17,7 @@ func EnableNat(subnet, bridgeName string) error {
     }
 
     err = ipt.AppendUnique(
-        "mangle",
-        "FORWARD",
+        "mangle", "FORWARD",
         "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
         "-j", "TCPMSS", "--set-mss", "1410",
     )
@@ -31,7 +31,20 @@ func EnableNat(subnet, bridgeName string) error {
         log.Printf("[ERROR] NAT Error: Failed to add conntrack rule: %v", err)
         return err
     }
-    
+
+
+    err = ipt.Insert("filter", "FORWARD", 2, "-i", bridgeName, "-j", "ACCEPT")
+    if err != nil {
+        log.Printf("[ERROR] NAT Error: %v", err)
+        return err
+    }
+
+    err = ipt.Insert("filter", "FORWARD", 3, "-o", bridgeName, "-j", "ACCEPT")
+    if err != nil {
+        log.Printf("[ERROR] NAT Error: %v", err)
+        return err
+    }
+
 
     podSubnet := subnet
     nodeSubnet := "192.168.56.0/24"
@@ -43,17 +56,6 @@ func EnableNat(subnet, bridgeName string) error {
     )
     if err != nil {
         log.Printf("[ERROR] NAT Error: Failed to add MASQUERADE rule: %v", err)
-        return err
-    }
-
-    err = ipt.AppendUnique("filter", "FORWARD", "-i", bridgeName, "-j", "ACCEPT")
-    if err != nil {
-        log.Printf("[ERROR] NAT Error: %v", err)
-        return err
-    }
-    err = ipt.AppendUnique("filter", "FORWARD", "-o", bridgeName, "-j", "ACCEPT")
-    if err != nil {
-        log.Printf("[ERROR] NAT Error: %v", err)
         return err
     }
 
