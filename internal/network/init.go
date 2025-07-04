@@ -47,7 +47,7 @@ func EnableNat(subnet, bridgeName string) error {
 
 
     podSubnet := subnet
-    nodeSubnet := "192.168.56.0/24"
+    nodeSubnet := "192.168.0.0/24"
 
     err = ipt.AppendUnique(
         "nat", "POSTROUTING",
