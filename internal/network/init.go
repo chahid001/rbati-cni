@@ -42,11 +42,12 @@ func EnableNat(subnet, bridgeName string) error {
 		return err
 	}
 
-	err = ipt.AppendUnique(
-		"nat", "POSTROUTING",
-		"-s", subnet, "-o", "eth0",
-		"-j", "MASQUERADE",
-	)
+  err = ipt.Insert(
+    "nat", "POSTROUTING", 1, 
+    "-s", subnet, "-o", "eth0",
+    "-j", "MASQUERADE",
+  )
+
 	if err != nil {
 		log.Printf("[ERROR] NAT Error: Failed to add MASQUERADE rule: %v", err)
 		return err
