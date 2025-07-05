@@ -1,19 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	pb "rbati-cni/api"
 	"rbati-cni/internal/discovery"
+	"rbati-cni/internal/ipam"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/logs"
 	"rbati-cni/internal/result"
 	"rbati-cni/internal/types"
+	"strings"
 	"time"
 
 	"github.com/vishvananda/netlink"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -55,22 +53,18 @@ func main() {
 
 	cmd := envMap["CNI_COMMAND"]
 
-
-	controllerIP := fmt.Sprintf("%s:50051", configJSON.ControllerIP)
-
-	cnx, err := grpc.NewClient(
-		controllerIP, 
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	data, err := os.ReadFile("/run/rbati-cni/rbati.env")
 	if err != nil {
-		logs.Log.Error("Could not connect with IPAM controller")
+		logs.Log.Error("Failed to read env.", "ERROR", err)
 		os.Exit(1)
 	}
-	defer cnx.Close()
-	client := pb.NewIPAMServiceClient(cnx)
+	podSubnet := strings.TrimSpace(string(data))
 
-
-
-	
+	ipam, err := ipam.NewIPAM(podSubnet, "/var/lib/cni/rbati-cni/ipam.db")
+	if err != nil {
+		logs.Log.Error("Failed create ipam object.", "ERROR", err)
+		os.Exit(1)
+	}
 
 	if cmd == "ADD" || cmd == "DEL" || cmd == "CHECK" {
 		if discovery.CheckVersions(configJSON.CNIVersion) == false {
@@ -90,7 +84,7 @@ func main() {
 	switch cmd {
 
 	case "ADD":
-		if err := discovery.Add(envMap, configJSON, bridge, client); err != nil {
+		if err := discovery.Add(envMap, configJSON, bridge, ipam); err != nil {
 
 			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
@@ -106,7 +100,7 @@ func main() {
 		os.Exit(0)
 
 	case "DEL":
-		if err := discovery.DEL(envMap, configJSON, client); err != nil {
+		if err := discovery.DEL(envMap, configJSON, ipam); err != nil {
 
 			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,
@@ -122,7 +116,7 @@ func main() {
 		os.Exit(0)
 
 	case "CHECK":
-		if err := discovery.CHECK(envMap, configJSON); err != nil {
+		if err := discovery.CHECK(envMap, configJSON, podSubnet); err != nil {
 
 			cniErr := types.CNIError{
 				CNIVersion: configJSON.CNIVersion,

@@ -24,9 +24,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
   "name": "rbati",
   "type": "rbati-cni",     
   "iface": "eth1",
-  "controllerIP": "192.168.56.110",
   "ipam": {           
-    "subnet": "172.16.1.0/24",
     "dns": {
       "nameservers": ["8.8.8.8", "1.1.1.1"],
       "search": ["svc.cluster.local"]
@@ -104,61 +102,6 @@ spec:
           mountPath: /etc/cni/net.d
         - name: cni-bin
           mountPath: /opt/cni/bin
-      volumes:
-      - name: cniconf
-        hostPath:
-          path: /etc/cni/net.d
-      - name: cni-bin
-        hostPath:
-          path: /opt/cni/bin
-EOF
-
-echo "[INFO] Deploying controller (Deployment + Service)..."
-
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  name: rbati-controller
-  namespace: kube-system
-spec:
-  selector:
-    app: rbati-controller
-  ports:
-  - name: grpc
-    port: 50051
-    targetPort: 50051
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: rbati-controller
-  namespace: kube-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: rbati-controller
-  template:
-    metadata:
-      labels:
-        app: rbati-controller
-    spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
-      serviceAccountName: rbati-agent
-      containers:
-      - name: controller
-        image: schahid01/rbati-controller:latest
-        securityContext:
-          privileged: true
-        ports:
-        - containerPort: 50051
-        volumeMounts:
-        - name: cniconf
-          mountPath: /etc/cni/net.d
-        - name: cni-bin
-          mountPath: /opt/cni/bin
         - name: ipam-db
           mountPath: /var/lib/cni
       volumes:
@@ -170,8 +113,6 @@ spec:
           path: /opt/cni/bin
       - name: ipam-db
         hostPath:
-          path: /var/lib/rbati-cni
+          path: /var/lib/cni/rbati-cni
           type: DirectoryOrCreate
 EOF
-
-echo "[DONE] Installation complete."

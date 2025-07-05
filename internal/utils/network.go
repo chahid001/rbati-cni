@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"log"
+	"os"
+	"path/filepath"
 	"rbati-cni/internal/logs"
 	"runtime"
 
@@ -9,6 +12,31 @@ import (
 )
 
 
+func ProducerConsumer(PodSubent string) error {
+
+	path := "/run/rbati-cni"
+	filename := "rbati.env"
+
+	fullpath := filepath.Join(path, filename)
+
+	if err := os.MkdirAll(path, 0755); err != nil {
+		log.Printf("[ERROR] Failed to create path: %v\n", err)
+		return err 
+	}
+
+	content := []byte(PodSubent)
+
+	if err := os.WriteFile(fullpath, content, 0644); err != nil {
+		log.Printf("[ERROR] Failed to create ENV file: %v\n", err)
+		return err 		
+	}
+
+
+	log.Println("[INFO] Created ENV file !")
+
+	return nil
+
+}
 
 
 func GetPodIP(NetnsPath, PodVethEndName string) ([]netlink.Addr, error) {

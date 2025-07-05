@@ -20,7 +20,6 @@ type RoutesConfig struct {
 }
 
 type IPAMConfig struct {
-	Subnet string          `json:"subnet"`
 	Routes []*RoutesConfig `json:"routes"`
 	DNS    *DNSConfig      `json:"dns,omitempty"`
 }
@@ -30,9 +29,7 @@ type CNIConfig struct {
 	Name       			string      `json:"name"`
 	Type       			string      `json:"type"`
 	Bridge     			string      `json:"bridge,omitempty"`
-	BridgeIP   			string      `json:"bridgeIP,omitempty"`
 	IFace      			string      `json:"iface"`
-	ControllerIP	   	string	   	`json:"controllerIP"`
 	IPAM       			*IPAMConfig `json:"ipam,omitempty"`
 }
 

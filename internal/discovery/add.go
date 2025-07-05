@@ -1,22 +1,21 @@
 package discovery
 
 import (
-	"context"
 	"fmt"
+	"net"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/logs"
 	"rbati-cni/internal/result"
 	"rbati-cni/internal/types"
-
-	pb "rbati-cni/api"
-
-	"net"
 	"rbati-cni/internal/utils"
+	"rbati-cni/internal/ipam"
 	"runtime"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
+
+
 
 func CreateVethPair(vethHost, vethPOD string) (*netlink.Veth, error) {
 
@@ -273,7 +272,7 @@ func LoadDNS(DNS *load.DNSConfig, CNIResult *types.CNIResult) {
 
 }
 
-func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, client pb.IPAMServiceClient) error {
+func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, ipam *ipam.IPAM) error {
 
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("----------------------------")
@@ -326,22 +325,16 @@ func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, cl
 	//--------------- Allocate IP Address for POD -----------------
 	logs.Log.Info("Allocating new IP Address for", "POD", envMap["CNI_CONTAINERID"][:4])
 
-	resp, err := client.AllocateIP(context.Background(), &pb.AllocateRequest{
-		Pod: envMap["CNI_CONTAINERID"][:4],
-		CandidateIP: "",
-	})
+	podIP, podMask, err := ipam.Allocate("")
 
 	if err != nil {
 		logs.Log.Error("Couldn't Allocate IP for POD.", "ERROR", err)
 		return err
 	}
 
-	// Getting Subnet mask as String
-	mask := net.IPMask(net.ParseIP(resp.Mask).To4())
+	ones, _ := podMask.Size()
 
-	maskLen, _ := mask.Size()
-
-	cidr := fmt.Sprintf("%s/%d", resp.Ip, maskLen)
+	cidr := fmt.Sprintf("%s/%d", podIP, ones)
 
 	//------------------- Setting POD End ----------------------
 	if err := SettingPodEnd(
@@ -357,13 +350,10 @@ func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, cl
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
 
-		_, err := client.ReleaseIP(context.Background(), &pb.ReleaseRequest{
-			Ip: resp.Ip,
-		})
-		if err != nil {
+		if err := ipam.Release(podIP.String()); err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 		}
-		logs.Log.Error("Released POD IP", "IP", resp.Ip)
+		logs.Log.Error("Released POD IP", "IP", podIP.String())
 		logs.Log.Error("Setting POD end exited with error 1.")
 		return err
 	}
@@ -372,13 +362,10 @@ func Add(envMap map[string]string, config *load.CNIConfig, bridgeName string, cl
 		if err := netlink.LinkDel(vethPair); err != nil {
 			logs.Log.Error("Couldn't delete vethPair", "ERROR", err)
 		}
-		_, err := client.ReleaseIP(context.Background(), &pb.ReleaseRequest{
-			Ip: resp.Ip,
-		})
-		if err != nil {
+		if err := ipam.Release(podIP.String()); err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 		}
-		logs.Log.Error("Released POD IP", "IP", resp.Ip)
+		logs.Log.Error("Released POD IP", "IP", podIP.String())
 		logs.Log.Error("Setting Host end exited with error 1.")
 		return err
 	}

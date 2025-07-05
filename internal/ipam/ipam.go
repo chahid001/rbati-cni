@@ -1,8 +1,8 @@
-package network
+package ipam
 
 import (
 	"fmt"
-	"log"
+	"rbati-cni/internal/logs"
 	"net"
 	"os"
 	"sync"
@@ -22,17 +22,17 @@ type IPAM struct {
 func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 	_, _subnet, err := net.ParseCIDR(Subnet)
 	if err != nil {
-		log.Printf("Couldn't parse Subnet ! Subnet invalid; Error: %v", err)
+		logs.Log.Error("Couldn't parse Subnet ! Subnet invalid", "ERROR", err)
 		return nil, err
 	}
 
-	if err := os.MkdirAll("/var/lib/cni", 0755); err != nil {
+	if err := os.MkdirAll("/var/lib/cni/rbati-cni", 0755); err != nil {
 		return nil, err
 	}
 
 	_db, err := bolt.Open(_dbPath, 0600, nil)
 	if err != nil {
-		log.Printf("Couldn't Open DataBase; Error: %v", err)
+		logs.Log.Error("Couldn't Open DataBase", "ERROR", err)
 		return nil, err
 	}
 
@@ -44,35 +44,24 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 }
 
 func (i *IPAM) isAllocated(ip string) (bool, error) {
-    var allocated bool
-    err := i.db.View(func(tx *bolt.Tx) error {
-        b := tx.Bucket([]byte(bucketName))
-        if b == nil {
-            // Bucket doesn't exist, so no IPs are allocated yet
-            allocated = false
-            return nil
-        }
-        // If Get returns a value, the IP is allocated
-        if b.Get([]byte(ip)) != nil {
-            allocated = true
-        } else {
-            allocated = false
-        }
-        return nil
-    })
-
-    if err != nil {
-        return false, err // Return any error from accessing the database
-    }
-
-    return allocated, nil
+	return i.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return nil
+		}
+		data := b.Get([]byte(ip))
+		if data == nil {
+			return nil
+		}
+		return fmt.Errorf("IP %s is allocated", ip)
+	}) == nil, nil
 }
 
 func (i *IPAM) setLease(ip string) error {
 	return i.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
-			log.Printf("Couldn't Check Allocation; Error: %v", err)
+			logs.Log.Error("Couldn't Check Allocation", "ERROR", err)
 			return err
 		}
 		return b.Put([]byte(ip), []byte("1"))
@@ -91,18 +80,18 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-
+        
 		newIP := net.ParseIP(candidate)
-		if !i.subnet.Contains(newIP) {
-			log.Println("IP is not part of Subnet !")
-			return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
-		}
+        if !i.subnet.Contains(newIP) {
+             logs.Log.Error("IP is not part of Subnet !")
+             return nil, nil, fmt.Errorf("candidate IP %s is not part of subnet %s", candidate, i.subnet.String())
+        }
 
-		if isAllocated {
-			log.Printf("IP already reserved, returning success. IP %v", candidate)
-			return newIP, mask, nil
-		}
-
+        if isAllocated {
+            logs.Log.Info("IP already reserved, returning success.", "IP", candidate)
+            return newIP, mask, nil
+        }
+		
 		if err := i.setLease(candidate); err != nil {
 			return nil, nil, err
 		}
@@ -129,7 +118,7 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
 		return ip, mask, nil
 	}
 
-	log.Println("No IP available to reserve")
+	logs.Log.Error("No IP available to reserve")
 	return nil, nil, fmt.Errorf("no available IP addresses in subnet %s", i.subnet.String())
 }
 

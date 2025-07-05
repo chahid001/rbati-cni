@@ -11,7 +11,7 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-func CHECK(envMap map[string]string, config *load.CNIConfig) error {
+func CHECK(envMap map[string]string, config *load.CNIConfig, PodSubnet string) error {
 
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("----------------------------")
@@ -56,7 +56,7 @@ func CHECK(envMap map[string]string, config *load.CNIConfig) error {
 	// Check IPs
 	Addrs, err := utils.GetPodIP(envMap["CNI_NETNS"], envMap["CNI_IFNAME"])
 
-	_, subnet, err := net.ParseCIDR(config.IPAM.Subnet)
+	_, subnet, err := net.ParseCIDR(PodSubnet)
 
 	if err != nil {
 		logs.Log.Error("Couldn't parse Subnet", "ERROR", err)

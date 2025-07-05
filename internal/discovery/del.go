@@ -1,17 +1,16 @@
 package discovery
 
 import (
-	"context"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/logs"
 	"rbati-cni/internal/utils"
+	"rbati-cni/internal/ipam"
 
-	pb "rbati-cni/api"
 
 	"github.com/vishvananda/netlink"
 )
 
-func DEL(envMap map[string]string, config *load.CNIConfig, client pb.IPAMServiceClient) error {
+func DEL(envMap map[string]string, config *load.CNIConfig, ipam *ipam.IPAM) error {
 
 	logs.Log.Info("----------------------------")
 	logs.Log.Info("----------------------------")
@@ -47,9 +46,9 @@ func DEL(envMap map[string]string, config *load.CNIConfig, client pb.IPAMService
 	for _, ip := range podIPs {
 
 		logs.Log.Info("Releasing IP", "IP", ip.IP.String())
-		_, err := client.ReleaseIP(context.Background(), &pb.ReleaseRequest{
-			Ip: ip.IP.String(),
-		})
+		if err := ipam.Release(ip.IP.String()); err != nil {
+			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
+		}
 		if err != nil {
 			logs.Log.Error("Couldn't release IP Address for POD", "ERROR", err)
 			return err

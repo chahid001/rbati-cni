@@ -1,18 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"rbati-cni/internal/ipam"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/network"
+	"rbati-cni/internal/utils"
 	"time"
 
-	pb "rbati-cni/api"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -39,26 +36,8 @@ func main() {
 	if configJSON.Bridge != "" {
 		bridge = configJSON.Bridge
 	}
-	
-	controllerIP := fmt.Sprintf("%s:50051", configJSON.ControllerIP)
-	cnx, err := grpc.NewClient(
-		controllerIP, 
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Println("Could not connect with IPAM controller")
-	}
-	defer cnx.Close()
-	client := pb.NewIPAMServiceClient(cnx)	
 
-	err = network.SetupBridge(bridge, configJSON.BridgeIP, configJSON.IPAM.Subnet, client)
-	if err != nil {
-		log.Printf("[ERROR] Failed to create Bridge device: %v\n", err)
-		os.Exit(1)
-	}
-
-	network.EnableNat(configJSON.IPAM.Subnet, bridge)
-
-
+	// ---------------- Kubernetes API --------------------
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Printf("[ERROR] Failed to get in-cluster config: %v\n", err)
@@ -70,6 +49,43 @@ func main() {
 		log.Printf("[ERROR] Failed to create clientset: %v\n", err)
 		os.Exit(1)
 	}
+
+	//--------------- Get PodCIDR ------------------
+	podSubnet, err := kube.GetNodePodCIDR(clientset, kube.GetNodeName())
+	if err != nil {
+		log.Printf("[ERROR] Failed to get pod Subnet: %v\n", err)
+		os.Exit(1)
+	}
+
+	//----- Pass NodeName as ProducerConsumer pattern -------------
+	if err := utils.ProducerConsumer(podSubnet); err != nil {
+		log.Printf("[ERROR] %v\n", err)
+		os.Exit(1)		
+	}
+
+
+	//--------------- Create IPAM object ------------------
+	ipam, err := ipam.NewIPAM(podSubnet, "/var/lib/cni/rbati-cni/ipam.db")
+	if err != nil {
+		log.Printf("[ERROR] Failed to create ipam object: %v\n", err)
+		os.Exit(1)		
+	}
+
+	//--------------- Get Gateway IP ------------------
+	gatewayIP, err := network.GetGatewayIP(podSubnet)
+	if err != nil {
+		log.Printf("[ERROR] Failed to get Gateway IP: %v\n", err)
+		os.Exit(1)		
+	}	
+
+	//--------------- Setup Bridge ------------------
+	err = network.SetupBridge(bridge, gatewayIP, ipam)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create Bridge device: %v\n", err)
+		os.Exit(1)
+	}
+
+	network.EnableNat(podSubnet, "192.168.56.0/24", bridge)
 
 	err = network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
 	if err != nil {

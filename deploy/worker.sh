@@ -26,9 +26,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
   "name": "rbati",
   "type": "rbati-cni",     
   "iface": "eth1",
-  "controllerIP": "192.168.56.110",
   "ipam": {           
-    "subnet": "172.16.1.0/24",
     "dns": {
       "nameservers": ["8.8.8.8", "1.1.1.1"],
       "search": ["svc.cluster.local"]
