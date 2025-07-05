@@ -3,7 +3,7 @@
 set -e
 
 PLUGIN_NAME="rbati-cni"
-PLUGIN_BIN="./bin/$PLUGIN_NAME"
+PLUGIN_BIN="/schahid/$PLUGIN_NAME"
 
 echo "[INFO] Installing $PLUGIN_NAME..."
 
@@ -51,7 +51,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["nodes"]
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list", "update", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
