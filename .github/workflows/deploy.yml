@@ -1,15 +1,12 @@
-name: Build & Push Docker Images
+name: Build & Push Docker Image
 
 on:
   push:
     branches: [develop]
 
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        component: [agent, controller]
 
     steps:
     - name: Checkout code
@@ -24,10 +21,9 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build & Push ${{ matrix.component }}
+    - name: Build and Push
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: schahid01/rbati-${{ matrix.component }}:latest
-        file: ./docker/${{ matrix.component }}/Dockerfile
+        tags: schahid01/rbati-agent:latest
