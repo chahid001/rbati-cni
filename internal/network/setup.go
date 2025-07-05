@@ -95,7 +95,7 @@ func SetupBridge(name, ip , subnet string, client pb.IPAMServiceClient) error {
 	return nil  
 }
 
-func SetupVXLAN(name, iface string, vni int) error {
+func SetupVXLAN(name, iface, bridge string, vni int) error {
 
 	_, err := netlink.LinkByName(name)
 	if err == nil {
@@ -146,6 +146,19 @@ func SetupVXLAN(name, iface string, vni int) error {
 		}
 		return err
 	}
+
+
+
+	br, err := netlink.LinkByName(bridge)
+    if err != nil {
+        log.Printf("Couldn't Get Iface %v\n", err)
+		return err
+    }
+
+    if err := netlink.LinkSetMaster(vxlan, br); err != nil {
+        log.Printf("[ERROR] Link bridge to VXLAN %v\n", err)
+		return err
+    }
 
 	return nil
 }
