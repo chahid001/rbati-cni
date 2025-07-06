@@ -100,7 +100,7 @@ func (i *IPAM) Allocate(candidate string) (net.IP, net.IPMask, error) {
 
 	for ip := ip.To4(); i.subnet.Contains(ip); incrementIP(ip) {
 		lastByte := ip[len(ip)-1]
-		if lastByte == 0 || lastByte == 255 {
+		if lastByte == 0 || lastByte == 1 || lastByte == 255 {
 			continue
 		}
 		ipStr := ip.String()
