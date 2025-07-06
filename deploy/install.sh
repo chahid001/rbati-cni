@@ -2,7 +2,7 @@
 
 set -e
 
-PLUGIN_NAME="rbati-cni"
+PLUGIN_NAME="rbati-d"
 PLUGIN_BIN="/schahid/$PLUGIN_NAME"
 
 echo "[INFO] Installing $PLUGIN_NAME..."
