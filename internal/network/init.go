@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"log"
 	"net"
 
@@ -22,46 +23,56 @@ func GetGatewayIP(podSubnet string) (string, error) {
 	return gatewayIP.String(), nil
 }
 
-func EnableNat(localPodCIDR, clusterCIDR, bridgeName string) error {
-	ipt, err := iptables.New()
-	if err != nil {
-		return err
-	}
+func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
+    ipt, err := iptables.New()
+    if err != nil {
+        return fmt.Errorf("failed to get iptables instance: %w", err)
+    }
 
-	err = ipt.AppendUnique(
-		"mangle", "FORWARD",
-		"-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
-		"-j", "TCPMSS", "--set-mss", "1410",
-	)
-	if err != nil {
-		log.Printf("[ERROR] NAT Error: Failed to add TCPMSS clamp rule: %v", err)
-	}
 
-	err = ipt.Insert("filter", "FORWARD", 1, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT")
-	if err != nil {
-		log.Printf("[ERROR] NAT Error: Failed to add conntrack rule: %v", err)
-	}
+    cniChain := "RBATI-FORWARD"
+    if err := ipt.NewChain("filter", cniChain); err != nil {
+        if e, ok := err.(*iptables.Error); !ok || e.ExitStatus() != 1 {
+            return fmt.Errorf("failed to create custom chain %s: %w", cniChain, err)
+        }
+    }
 
-	err = ipt.Insert("filter", "FORWARD", 2, "-i", bridgeName, "-j", "ACCEPT")
-	if err != nil {
-		log.Printf("[ERROR] NAT Error: %v", err)
-	}
+    jumpRule := []string{"-j", cniChain}
+    if err := ipt.AppendUnique("filter", "FORWARD", jumpRule...); err != nil {
+        return fmt.Errorf("failed to add jump rule to custom chain: %w", err)
+    }
 
-	err = ipt.Insert("filter", "FORWARD", 3, "-o", bridgeName, "-j", "ACCEPT")
-	if err != nil {
-		log.Printf("[ERROR] NAT Error: %v", err)
-	}
 
-	err = ipt.AppendUnique(
-		"nat", "POSTROUTING",
-		"-s", localPodCIDR,
-		"!", "-d", clusterCIDR,
-		"-j", "MASQUERADE",
-	)
-	if err != nil {
-		return err
-	}
+    ruleEstablished := []string{"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+    if err := ipt.AppendUnique("filter", cniChain, ruleEstablished...); err != nil {
+        return fmt.Errorf("failed to add established connection rule: %w", err)
+    }
 
-	log.Println("[INFO] Successfully enabled NAT and forwarding rules.")
-	return nil
+    ruleVxlanToBridge := []string{"-i", vxlanName, "-o", bridgeName, "-j", "ACCEPT"}
+    if err := ipt.AppendUnique("filter", cniChain, ruleVxlanToBridge...); err != nil {
+        return fmt.Errorf("failed to add vxlan to bridge rule: %w", err)
+    }
+
+    ruleBridgeToAny := []string{"-i", bridgeName, "-j", "ACCEPT"}
+    if err := ipt.AppendUnique("filter", cniChain, ruleBridgeToAny...); err != nil {
+        return fmt.Errorf("failed to add bridge to any rule: %w", err)
+    }
+
+
+    err = ipt.AppendUnique("mangle", "POSTROUTING",
+        "-s", localPodCIDR, "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
+        "-j", "TCPMSS", "--set-mss", "1410")
+    if err != nil {
+        log.Printf("[WARN] Failed to add TCPMSS clamp rule: %v", err)
+    }
+
+    err = ipt.AppendUnique("nat", "POSTROUTING",
+        "-s", localPodCIDR, "!", "-d", clusterCIDR,
+        "-j", "MASQUERADE")
+    if err != nil {
+        return fmt.Errorf("failed to add masquerade rule: %w", err)
+    }
+
+    log.Println("[INFO] Successfully enabled NAT and robust forwarding rules.")
+    return nil
 }
