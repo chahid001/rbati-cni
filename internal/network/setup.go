@@ -42,11 +42,11 @@ func SetupBridge(name, ip string) error {
     }
 
 	bridgeIP := net.ParseIP(ip)
-	bridgeMask := bridgeIP.DefaultMask()
+	// bridgeMask := bridgeIP.DefaultMask()
 	
-	ones, _ := bridgeMask.Size()
+	// ones, _ := bridgeMask.Size()
 
-	bridgeCIDR := fmt.Sprintf("%s/%d", bridgeIP.String(), ones)
+	bridgeCIDR := fmt.Sprintf("%s/24", bridgeIP.String())
 
 	addr, err := netlink.ParseAddr(bridgeCIDR)
 	if err != nil {
