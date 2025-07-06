@@ -29,7 +29,6 @@ func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
         return fmt.Errorf("failed to get iptables instance: %w", err)
     }
 
-
     cniChain := "RBATI-FORWARD"
     if err := ipt.NewChain("filter", cniChain); err != nil {
         if e, ok := err.(*iptables.Error); !ok || e.ExitStatus() != 1 {
