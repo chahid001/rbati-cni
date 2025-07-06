@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -51,6 +52,47 @@ func GetNodePodCIDR(clientset kubernetes.Interface, nodeName string) (string, er
 		return "", err
 	}
 	return node.Spec.PodCIDR, nil
+}
+
+func UpdateRoutes(clientset *kubernetes.Clientset, vxlanName string) error {
+    vxlan, err := netlink.LinkByName(vxlanName)
+    if err != nil {
+        return fmt.Errorf("failed to get VXLAN reference: %w", err)
+    }
+
+    nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
+    if err != nil {
+        return fmt.Errorf("failed to list nodes: %w", err)
+    }
+
+    for _, node := range nodes.Items {
+        if node.Name == GetNodeName() {
+            continue 
+        }
+
+        if node.Spec.PodCIDR == "" {
+            continue 
+        }
+
+        _, subnet, err := net.ParseCIDR(node.Spec.PodCIDR)
+        if err != nil {
+            log.Printf("[WARN] Failed to parse PodCIDR for node %s: %v", node.Name, err)
+            continue
+        }
+
+        route := &netlink.Route{
+            LinkIndex: vxlan.Attrs().Index,
+            Scope:     netlink.SCOPE_UNIVERSE,
+            Dst:       subnet,
+        }
+
+        if err := netlink.RouteReplace(route); err != nil {
+            log.Printf("[WARN] Failed to add route for peer %s (%s): %v", node.Name, subnet, err)
+            continue
+        }
+        log.Printf("[INFO] Route added for peer %s -> %s\n", node.Name, subnet)
+    }
+    return nil
 }
 
 func AddFDBEntry(vxlan netlink.Link, remoteIP net.IP) error {

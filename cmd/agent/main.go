@@ -76,7 +76,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	network.EnableNat(podSubnet, "192.168.56.0/24", bridge)
+	network.EnableNat(podSubnet, "10.42.0.0/16", bridge)
 
 	err = network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
 	if err != nil {
@@ -90,6 +90,11 @@ func main() {
 	for {
 
 		log.Println("[INFO] Syncing VXLAN peer FDB entries...")
+        
+		if err := kube.UpdateRoutes(clientset, vxlanName); err != nil {
+            log.Printf("[ERROR] Failed to update routes: %v\n", err)
+        }
+
 		err := kube.UpdateFDBEntry(clientset, vxlanName)
 		if err != nil {
 			log.Printf("[ERROR] Failed to update FDB entries: %v\n", err)
