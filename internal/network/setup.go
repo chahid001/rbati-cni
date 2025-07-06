@@ -26,7 +26,7 @@ func SetupBridge(name, ip string) error {
 
         if _, ok := err.(netlink.LinkNotFoundError); ok {
             log.Printf("[INFO] Bridge %s not found. Creating it.\n", name)
-            la := netlink.LinkAttrs{Name: name}
+            la := netlink.LinkAttrs{Name: name, MTU: 1450}
             newBridge := &netlink.Bridge{LinkAttrs: la}
             if err := netlink.LinkAdd(newBridge); err != nil {
                 log.Printf("[ERROR] Could not create bridge %s: %v\n", name, err)
@@ -98,6 +98,7 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 
 		LinkAttrs: netlink.LinkAttrs{
 			Name: name,
+			MTU: 1450,
 		},
 		VxlanId:      vni,
 		VtepDevIndex: ifVeth.Attrs().Index,
