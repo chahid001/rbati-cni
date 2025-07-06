@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"log"
 
 	"rbati-cni/internal/ipam"
@@ -26,7 +25,7 @@ func bridgeCleanUP(bridge netlink.Link, ip string, ipam *ipam.IPAM, err error) {
 
 }
 
-func SetupBridge(name, ip string, ipam *ipam.IPAM) error {
+func SetupBridge(name, ip string) error {
 
 	log.Printf("[INFO] Creating Bridge %v\n", name)
     
@@ -50,37 +49,37 @@ func SetupBridge(name, ip string, ipam *ipam.IPAM) error {
         log.Printf("[INFO] Bridge %s already exists. Using existing device.\n", name)
     }
 
-	bridgeIP, bridgeMask, err := ipam.Allocate(ip)
-	if err != nil {
-		log.Printf("[ERROR] Couldn't Allocate specified IP for Bridge Interface; %v\n", err)
-		log.Printf("[ERROR] Cleaning... Deleting Bridge %v\n", name)
-		if err := netlink.LinkDel(bridge); err != nil {
-			log.Printf("[ERROR] Couldn't delete Bridge; %v\n", err)
-		}
-		return err
-	}
+	// bridgeIP, bridgeMask, err := ipam.Allocate(ip)
+	// if err != nil {
+	// 	log.Printf("[ERROR] Couldn't Allocate specified IP for Bridge Interface; %v\n", err)
+	// 	log.Printf("[ERROR] Cleaning... Deleting Bridge %v\n", name)
+	// 	if err := netlink.LinkDel(bridge); err != nil {
+	// 		log.Printf("[ERROR] Couldn't delete Bridge; %v\n", err)
+	// 	}
+	// 	return err
+	// }
 
-	log.Printf("[INFO] Attached IP Address '%v' to Bridge %v\n", bridgeIP.String() ,name)
+	// log.Printf("[INFO] Attached IP Address '%v' to Bridge %v\n", bridgeIP.String() ,name)
 
 
-	ones, _ := bridgeMask.Size()
-	bridgeCIDR := fmt.Sprintf("%s/%d", bridgeIP.String(), ones)
+	// ones, _ := bridgeMask.Size()
+	// bridgeCIDR := fmt.Sprintf("%s/%d", bridgeIP.String(), ones)
 
-	addr, err := netlink.ParseAddr(bridgeCIDR)
-	if err != nil {
-		bridgeCleanUP(bridge, bridgeIP.String(), ipam, err)
-		return err
-	}
+	addr, err := netlink.ParseAddr("10.42.0.1/24")
+	// if err != nil {
+	// 	bridgeCleanUP(bridge, bridgeIP.String(), ipam, err)
+	// 	return err
+	// }
 	log.Println("[INFO] Parsed Address")
 
 	if err := netlink.AddrAdd(bridge, addr); err != nil {
-		bridgeCleanUP(bridge, bridgeIP.String(), ipam, err)
+		// bridgeCleanUP(bridge, bridgeIP.String(), ipam, err)
 		return err
 	}	
-	log.Printf("[INFO] Added IP Address '%v' to Bridge %v\n", bridgeIP.String() ,name)
+	// log.Printf("[INFO] Added IP Address '%v' to Bridge %v\n", bridgeIP.String() ,name)
 	
 	if err := netlink.LinkSetUp(bridge); err != nil {
-		bridgeCleanUP(bridge, bridgeIP.String(), ipam, err)
+		// bridgeCleanUP(bridge, bridgeIP.String(), ipam, err)
 		return err
 	}
 	log.Printf("[INFO] Set Bridge %v UP\n", name)

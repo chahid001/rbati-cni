@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"os"
-	"rbati-cni/internal/ipam"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/network"
@@ -63,14 +62,6 @@ func main() {
 		os.Exit(1)		
 	}
 
-
-	//--------------- Create IPAM object ------------------
-	ipam, err := ipam.NewIPAM(podSubnet, "/var/lib/cni/rbati-cni/ipam.db")
-	if err != nil {
-		log.Printf("[ERROR] Failed to create ipam object: %v\n", err)
-		os.Exit(1)		
-	}
-
 	//--------------- Get Gateway IP ------------------
 	gatewayIP, err := network.GetGatewayIP(podSubnet)
 	if err != nil {
@@ -79,7 +70,7 @@ func main() {
 	}	
 
 	//--------------- Setup Bridge ------------------
-	err = network.SetupBridge(bridge, gatewayIP, ipam)
+	err = network.SetupBridge(bridge, gatewayIP)
 	if err != nil {
 		log.Printf("[ERROR] Failed to create Bridge device: %v\n", err)
 		os.Exit(1)
