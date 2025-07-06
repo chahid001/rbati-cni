@@ -104,6 +104,8 @@ spec:
           mountPath: /opt/cni/bin
         - name: ipam-db
           mountPath: /var/lib/cni
+        - name: rbati-env
+          mountPath: /run/rbati-cni      
       volumes:
       - name: cniconf
         hostPath:
@@ -114,5 +116,9 @@ spec:
       - name: ipam-db
         hostPath:
           path: /var/lib/cni/rbati-cni
+          type: DirectoryOrCreate
+      - name: rbati-env
+        hostPath:
+          path: /run/rbati-cni
           type: DirectoryOrCreate
 EOF
