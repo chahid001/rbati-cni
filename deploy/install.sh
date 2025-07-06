@@ -22,7 +22,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
 {
   "cniVersion": "0.4.0",
   "name": "rbati",
-  "type": "rbati-cni",     
+  "type": "rbati-d",     
   "iface": "eth1",
   "ipam": {           
     "dns": {

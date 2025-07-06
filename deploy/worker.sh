@@ -2,7 +2,7 @@
 
 set -e
 
-PLUGIN_NAME="rbati-cni"
+PLUGIN_NAME="rbati-d"
 PLUGIN_BIN="/schahid/$PLUGIN_NAME"
 
 echo "[INFO] Installing $PLUGIN_NAME on worker..."
@@ -24,7 +24,7 @@ sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
 {
   "cniVersion": "0.4.0",
   "name": "rbati",
-  "type": "rbati-cni",     
+  "type": "rbati-d",     
   "iface": "eth1",
   "ipam": {           
     "dns": {
