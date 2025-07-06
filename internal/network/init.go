@@ -26,7 +26,7 @@ func GetGatewayIP(podSubnet string) (string, error) {
 // FILENAME: internal/network/nat.go
 
 // You will need to pass the serviceCIDR and vxlanName to this function
-func EnableNat(localPodCIDR, clusterCIDR, serviceCIDR, bridgeName, vxlanName string) error {
+func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
 	ipt, err := iptables.New()
 	if err != nil {
 		return fmt.Errorf("failed to get iptables instance: %w", err)
@@ -63,7 +63,6 @@ func EnableNat(localPodCIDR, clusterCIDR, serviceCIDR, bridgeName, vxlanName str
 	err = ipt.AppendUnique("nat", "POSTROUTING",
 		"-s", localPodCIDR,
 		"!", "-d", clusterCIDR, 
-		"!", "-d", serviceCIDR,
 		"-j", "MASQUERADE")
 	if err != nil {
 		return fmt.Errorf("failed to add masquerade rule: %w", err)

@@ -76,7 +76,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// network.EnableNat(podSubnet, "10.42.0.0/16", "10.43.0.0/24", bridge, vxlanName)
+	network.EnableNat(podSubnet, "10.42.0.0/16", bridge, vxlanName)
 
 	err = network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
 	if err != nil {
