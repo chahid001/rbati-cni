@@ -91,7 +91,7 @@ func main() {
 
 		log.Println("[INFO] Syncing VXLAN peer FDB entries...")
         
-		if err := kube.UpdateRoutes(clientset, vxlanName); err != nil {
+		if err := kube.UpdateRoutes(clientset, vxlanName, gatewayIP); err != nil {
             log.Printf("[ERROR] Failed to update routes: %v\n", err)
         }
 

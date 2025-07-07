@@ -55,7 +55,7 @@ func GetNodePodCIDR(clientset kubernetes.Interface, nodeName string) (string, er
 	return node.Spec.PodCIDR, nil
 }
 
-func UpdateRoutes(clientset *kubernetes.Clientset, vxlanName string) error {
+func UpdateRoutes(clientset *kubernetes.Clientset, vxlanName, bridgeIP string) error {
     vxlan, err := netlink.LinkByName(vxlanName)
     if err != nil {
         return fmt.Errorf("failed to get VXLAN reference: %w", err)
@@ -81,10 +81,13 @@ func UpdateRoutes(clientset *kubernetes.Clientset, vxlanName string) error {
             continue
         }
 
+		brIP := net.ParseIP(bridgeIP)
+
         route := &netlink.Route{
             LinkIndex: vxlan.Attrs().Index,
             Scope:     netlink.SCOPE_UNIVERSE,
             Dst:       subnet,
+			Src:       brIP,
         }
 
         if err := netlink.RouteReplace(route); err != nil {
