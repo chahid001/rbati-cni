@@ -23,9 +23,6 @@ func GetGatewayIP(podSubnet string) (string, error) {
 	return gatewayIP.String(), nil
 }
 
-// FILENAME: internal/network/nat.go
-
-// You will need to pass the serviceCIDR and vxlanName to this function
 func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
 	ipt, err := iptables.New()
 	if err != nil {
@@ -68,6 +65,11 @@ func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
 		return fmt.Errorf("failed to add masquerade rule: %w", err)
 	}
 
+    rulePodToPod := []string{"-s", localPodCIDR, "-d", clusterCIDR, "-j", "ACCEPT"}
+    if err := ipt.AppendUnique("filter", cniChain, rulePodToPod...); err != nil {
+        return fmt.Errorf("failed to add pod-to-pod forwarding rule: %w", err)
+    }
+	
 	log.Println("[INFO] Successfully enabled NAT and robust forwarding rules.")
 	return nil
 }
