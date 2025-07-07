@@ -41,8 +41,8 @@ func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
 	}
 
 	jumpRule := []string{"-j", cniChain}
-	if err := ipt.AppendUnique("filter", "FORWARD", jumpRule...); err != nil {
-		return fmt.Errorf("failed to add jump rule to custom chain: %w", err)
+	if err := ipt.Insert("filter", "FORWARD", 1, jumpRule...); err != nil {
+	    return fmt.Errorf("failed to insert jump rule to custom chain: %w", err)
 	}
 
 	ruleEstablished := []string{"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
