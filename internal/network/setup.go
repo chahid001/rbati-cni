@@ -105,7 +105,7 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 		VtepDevIndex: ifVeth.Attrs().Index,
 		SrcAddr:      addr[0].IP, // I feel betrayed, No the vxlan wont work with NIL
 		Port:         4789,
-		Learning:     true, // To always sent ARP requests to be up to date
+		Learning:     false, // To always sent ARP requests to be up to date
 		Proxy:        false,
 		L2miss:       false,
 		L3miss:       false,
