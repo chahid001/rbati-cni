@@ -126,16 +126,16 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 
 
 
-	br, err := netlink.LinkByName(bridge)
-    if err != nil {
-        log.Printf("Couldn't Get Iface %v\n", err)
-		return err
-    }
+	// br, err := netlink.LinkByName(bridge)
+    // if err != nil {
+    //     log.Printf("Couldn't Get Iface %v\n", err)
+	// 	return err
+    // }
 
-    if err := netlink.LinkSetMaster(vxlan, br); err != nil {
-        log.Printf("[ERROR] Link bridge to VXLAN %v\n", err)
-		return err
-    }
+    // if err := netlink.LinkSetMaster(vxlan, br); err != nil {
+    //     log.Printf("[ERROR] Link bridge to VXLAN %v\n", err)
+	// 	return err
+    // }
 
 	return nil
 }
