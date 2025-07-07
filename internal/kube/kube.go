@@ -105,7 +105,6 @@ func ReconcilePeers(clientset *kubernetes.Clientset, vxlanName string) error {
 			LinkIndex:    vxlan.Attrs().Index,
 			Family:       syscall.AF_BRIDGE, 
 			State:        netlink.NUD_PERMANENT,
-			Flags:        netlink.NTF_SELF,
 			HardwareAddr: peerMac,
 			IP:           peerIP,
 		}
@@ -145,100 +144,3 @@ func ReconcilePeers(clientset *kubernetes.Clientset, vxlanName string) error {
 
 	return nil
 }
-
-// func UpdateRoutes(clientset *kubernetes.Clientset, vxlanName, bridgeIP string) error {
-//     vxlan, err := netlink.LinkByName(vxlanName)
-//     if err != nil {
-//         return fmt.Errorf("failed to get VXLAN reference: %w", err)
-//     }
-
-//     nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
-//     if err != nil {
-//         return fmt.Errorf("failed to list nodes: %w", err)
-//     }
-
-//     for _, node := range nodes.Items {
-//         if node.Name == GetNodeName() {
-//             continue 
-//         }
-
-//         if node.Spec.PodCIDR == "" {
-//             continue 
-//         }
-
-//         _, subnet, err := net.ParseCIDR(node.Spec.PodCIDR)
-//         if err != nil {
-//             log.Printf("[WARN] Failed to parse PodCIDR for node %s: %v", node.Name, err)
-//             continue
-//         }
-
-// 		brIP := net.ParseIP(bridgeIP)
-
-//         route := &netlink.Route{
-//             LinkIndex: vxlan.Attrs().Index,
-//             Scope:     netlink.SCOPE_UNIVERSE,
-//             Dst:       subnet,
-// 			Src:       brIP,
-//         }
-
-//         if err := netlink.RouteReplace(route); err != nil {
-//             log.Printf("[WARN] Failed to add route for peer %s (%s): %v", node.Name, subnet, err)
-//             continue
-//         }
-//         log.Printf("[INFO] Route added for peer %s -> %s\n", node.Name, subnet)
-//     }
-//     return nil
-// }
-
-// func AddFDBEntry(vxlan netlink.Link, remoteIP net.IP) error {
-//     floodMac, _ := net.ParseMAC("00:00:00:00:00:00")
-
-//     return netlink.NeighAppend(&netlink.Neigh{
-//         LinkIndex:    vxlan.Attrs().Index,
-//         Family:       syscall.AF_BRIDGE,
-//         State:        netlink.NUD_PERMANENT,
-//         Flags:        netlink.NTF_SELF,
-//         HardwareAddr: floodMac,
-//         IP:           remoteIP,
-//     })
-// }
-
-// func UpdateFDBEntry(clientSet *kubernetes.Clientset, vxlanName string) error {
-
-// 	nodes, err := clientSet.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
-
-// 	if err != nil {
-// 		log.Printf("failed to List Nodes: %v", err)
-// 		return err
-// 	}
-
-// 	vxlan, err := netlink.LinkByName(vxlanName)
-// 	if err != nil {
-// 		log.Printf("failed to get VXLAN reference: %v", err)
-// 		return err		
-// 	}
-
-
-// 	for _, node := range nodes.Items {
-
-// 		if node.Name == GetNodeName() {
-// 			continue 
-// 		}
-
-// 		peerIP := GetInternalIP(node)
-
-// 		if peerIP == nil {
-// 			continue 
-// 		}
-
-//         if err := AddFDBEntry(vxlan, peerIP); err != nil {
-//             log.Printf("[WARN] Failed to add FDB entry for peer %s: %v\n", peerIP, err)
-//             continue
-//         }
-		
-// 		log.Printf("[INFO] FDB entry added for peer %s\n", peerIP)
-// 	}
-
-// 	return nil
-
-// }
