@@ -24,43 +24,40 @@ func GetGatewayIP(podSubnet string) (string, error) {
 }
 
 
-func EnableNat(localPodCIDR, clusterCIDR, bridgeName, vxlanName string) error {
-    ipt, err := iptables.New()
-    if err != nil {
-        return fmt.Errorf("failed to get iptables instance: %w", err)
-    }
+import (
+	"fmt"
+	"log"
 
-    cniChain := "RBATI-FORWARD"
-    ipt.ClearChain("filter", cniChain)
-    if err := ipt.NewChain("filter", cniChain); err != nil {
-        if e, ok := err.(*iptables.Error); !ok || e.ExitStatus() != 1 {
-            return fmt.Errorf("failed to create custom chain %s: %w", cniChain, err)
-        }
-    }
+	"github.com/coreos/go-iptables/iptables"
+)
 
-    jumpRule := []string{"-j", cniChain}
-    if err := ipt.Insert("filter", "FORWARD", 1, jumpRule...); err != nil {
-        return fmt.Errorf("failed to insert jump rule to custom chain: %w", err)
-    }
+func EnableNat(localPodCIDR, clusterCIDR string) error {
+	ipt, err := iptables.New()
+	if err != nil {
+		return fmt.Errorf("failed to get iptables instance: %w", err)
+	}
 
-    ruleEstablished := []string{"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
-    if err := ipt.AppendUnique("filter", cniChain, ruleEstablished...); err != nil {
-        return fmt.Errorf("failed to add established connection rule: %w", err)
-    }
+	if err := ipt.ChangePolicy("filter", "FORWARD", "ACCEPT"); err != nil {
+		return fmt.Errorf("failed to set FORWARD policy to ACCEPT: %w", err)
+	}
 
-    rulePodToPod := []string{"-s", localPodCIDR, "-d", clusterCIDR, "-j", "ACCEPT"}
-    if err := ipt.AppendUnique("filter", cniChain, rulePodToPod...); err != nil {
-        return fmt.Errorf("failed to add pod-to-pod forwarding rule: %w", err)
-    }
+	ruleEstablished := []string{"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+	if err := ipt.Insert("filter", "FORWARD", 1, ruleEstablished...); err != nil {
+		return fmt.Errorf("failed to insert established/related rule: %w", err)
+	}
+	
+	if err := ipt.Insert("filter", "FORWARD", 2, "-j", "ACCEPT"); err != nil {
+		return fmt.Errorf("failed to insert blanket ACCEPT rule: %w", err)
+	}
 
-    err = ipt.AppendUnique("nat", "POSTROUTING",
-        "-s", localPodCIDR,
-        "!", "-d", clusterCIDR,
-        "-j", "MASQUERADE")
-    if err != nil {
-        return fmt.Errorf("failed to add masquerade rule: %w", err)
-    }
+	err = ipt.AppendUnique("nat", "POSTROUTING",
+		"-s", localPodCIDR,
+		"!", "-d", clusterCIDR,
+		"-j", "MASQUERADE")
+	if err != nil {
+		return fmt.Errorf("failed to add masquerade rule: %w", err)
+	}
 
-    log.Println("[INFO] Successfully enabled NAT and robust forwarding rules.")
-    return nil
+	log.Println("[INFO] Successfully enabled simplified NAT and forwarding rules.")
+	return nil
 }
