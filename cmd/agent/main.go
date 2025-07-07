@@ -91,14 +91,10 @@ func main() {
 
 		log.Println("[INFO] Syncing VXLAN peer FDB entries...")
         
-		if err := kube.UpdateRoutes(clientset, vxlanName, gatewayIP); err != nil {
-            log.Printf("[ERROR] Failed to update routes: %v\n", err)
-        }
-
-		err := kube.UpdateFDBEntry(clientset, vxlanName)
-		if err != nil {
-			log.Printf("[ERROR] Failed to update FDB entries: %v\n", err)
+		if err := kube.ReconcilePeers(clientset, vxlanName); err != nil {
+			log.Printf("[ERROR] Failed to reconcile peers: %v\n", err)
 		}
+		
 		log.Println("[INFO] Sync complete.")
 		<-ticker.C
 	}

@@ -215,7 +215,13 @@ func SettingHostEnd(HostVethEndName string, master netlink.Link, CNIResult *type
 		logs.Log.Error("Couldn't set host veth UP.", "ERROR", err)
 		return err
 	}
+	
+	if err := netlink.LinkSetHairpin(veth, true); err != nil {
+		logs.Log.Error("Couldn't set Hairpin mode !", "ERROR", err)
+		return err
+	}
 
+	logs.Log.Info("Set Harpin mode.")
 	logs.Log.Info("Host Configuration Completed !")
 
 	CNIResult.Interfaces = append(CNIResult.Interfaces, types.Interface{

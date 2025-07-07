@@ -23,6 +23,7 @@ func GetGatewayIP(podSubnet string) (string, error) {
 	return gatewayIP.String(), nil
 }
 
+
 func EnableNat(localPodCIDR, clusterCIDR string) error {
 	ipt, err := iptables.New()
 	if err != nil {
@@ -30,16 +31,7 @@ func EnableNat(localPodCIDR, clusterCIDR string) error {
 	}
 
 	if err := ipt.ChangePolicy("filter", "FORWARD", "ACCEPT"); err != nil {
-		return fmt.Errorf("failed to set FORWARD policy to ACCEPT: %w", err)
-	}
-
-	ruleEstablished := []string{"-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
-	if err := ipt.Insert("filter", "FORWARD", 1, ruleEstablished...); err != nil {
-		return fmt.Errorf("failed to insert established/related rule: %w", err)
-	}
-	
-	if err := ipt.Insert("filter", "FORWARD", 2, "-j", "ACCEPT"); err != nil {
-		return fmt.Errorf("failed to insert blanket ACCEPT rule: %w", err)
+		log.Printf("[WARN] Could not set FORWARD policy to ACCEPT: %v. This might be okay.", err)
 	}
 
 	err = ipt.AppendUnique("nat", "POSTROUTING",
@@ -50,6 +42,6 @@ func EnableNat(localPodCIDR, clusterCIDR string) error {
 		return fmt.Errorf("failed to add masquerade rule: %w", err)
 	}
 
-	log.Println("[INFO] Successfully enabled simplified NAT and forwarding rules.")
+	log.Println("[INFO] Successfully enabled NAT for external traffic.")
 	return nil
 }
