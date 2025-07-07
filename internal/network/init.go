@@ -23,14 +23,6 @@ func GetGatewayIP(podSubnet string) (string, error) {
 	return gatewayIP.String(), nil
 }
 
-
-import (
-	"fmt"
-	"log"
-
-	"github.com/coreos/go-iptables/iptables"
-)
-
 func EnableNat(localPodCIDR, clusterCIDR string) error {
 	ipt, err := iptables.New()
 	if err != nil {
