@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"syscall"
 
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
@@ -96,16 +97,16 @@ func UpdateRoutes(clientset *kubernetes.Clientset, vxlanName string) error {
 }
 
 func AddFDBEntry(vxlan netlink.Link, remoteIP net.IP) error {
+    floodMac, _ := net.ParseMAC("00:00:00:00:00:00")
 
-	neighbor := netlink.Neigh{
-		
-		LinkIndex: vxlan.Attrs().Index,
-		State: netlink.NUD_PERMANENT,
-		IP: remoteIP,
-		HardwareAddr: net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	}
-
-	return netlink.NeighAdd(&neighbor)
+    return netlink.NeighAppend(&netlink.Neigh{
+        LinkIndex:    vxlan.Attrs().Index,
+        Family:       syscall.AF_BRIDGE,
+        State:        netlink.NUD_PERMANENT,
+        Flags:        netlink.NTF_SELF,
+        HardwareAddr: floodMac,
+        IP:           remoteIP,
+    })
 }
 
 func UpdateFDBEntry(clientSet *kubernetes.Clientset, vxlanName string) error {
@@ -136,12 +137,10 @@ func UpdateFDBEntry(clientSet *kubernetes.Clientset, vxlanName string) error {
 			continue 
 		}
 
-		err := AddFDBEntry(vxlan, peerIP)
-		
-		if err != nil {
-			log.Printf("[WARN] Failed to add FDB entry for peer %s: %v\n", peerIP, err)
-			return err
-		}
+        if err := AddFDBEntry(vxlan, peerIP); err != nil {
+            log.Printf("[WARN] Failed to add FDB entry for peer %s: %v\n", peerIP, err)
+            continue
+        }
 		
 		log.Printf("[INFO] FDB entry added for peer %s\n", peerIP)
 	}
