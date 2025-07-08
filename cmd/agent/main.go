@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net"
 	"os"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/utils"
 	"time"
-
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -76,11 +78,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	network.EnableNat(podSubnet, "10.42.0.0/16")
+	// network.EnableNat(podSubnet, "10.42.0.0/16")
 
-	err = network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
+	vxlanDev, err := network.EnsureVXLANInterface(vxlanName, configJSON.IFace, 1001)
 	if err != nil {
-		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
+		log.Printf("[ERROR] Failed to create VXLAN interface: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -89,12 +91,32 @@ func main() {
 
 	for {
 
-		log.Println("[INFO] Syncing VXLAN peer FDB entries...")
-        
-		if err := kube.ReconcilePeers(clientset, vxlanName); err != nil {
-			log.Printf("[ERROR] Failed to reconcile peers: %v\n", err)
+		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
+		if err != nil {
+			log.Printf("[ERROR] Failed to list nodes: %v\n", err)
+		} else {
+			var peers []network.PeerInfo
+			for _, node := range nodes.Items {
+				if node.Spec.PodCIDR == "" {
+					continue
+				}
+				peerIP := kube.GetInternalIP(node)
+				if peerIP == nil {
+					continue
+				}
+				_, subnet, _ := net.ParseCIDR(node.Spec.PodCIDR)
+				peers = append(peers, network.PeerInfo{
+					Name:   node.Name,
+					IP:     peerIP,
+					Subnet: subnet,
+				})
+			}
+			err := network.UpdateFDBAndRoutes(vxlanDev, peers, kube.GetNodeName())
+			if err != nil {
+				log.Printf("[ERROR] Failed to update FDB/routes: %v", err)
+			}
 		}
-		
+
 		log.Println("[INFO] Sync complete.")
 		<-ticker.C
 	}
