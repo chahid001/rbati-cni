@@ -116,6 +116,18 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 		return err
 	}
 
+	podCIDR := "10.42.0.0/32"
+
+	vxlanAddr, err := netlink.ParseAddr(podCIDR)
+	if err != nil {
+		return err
+	}
+	log.Println("[INFO] Parsed Address")
+
+	if err := netlink.AddrAdd(vxlan, vxlanAddr); err != nil {
+		return err
+	}	
+
 	if err := netlink.LinkSetUp(vxlan); err != nil {
 		log.Printf("Couldn't set VXLAN interface UP %v\n", err)
 		if err := netlink.LinkDel(vxlan); err != nil {
