@@ -76,7 +76,7 @@ func main() {
 	}
 
 	//--------------- Setup VXLAN ------------------
-	mac, err := network.SetupVXLAN(bridge, configJSON.IFace, bridge, 1001)
+	mac, err := network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
 	if err != nil {
 		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
 		os.Exit(1)
