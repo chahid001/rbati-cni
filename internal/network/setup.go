@@ -124,5 +124,5 @@ func SetupVXLAN(name, iface, bridge string, vni int) (net.HardwareAddr, error) {
 		return nil, err
 	}
 
-	return vxlan.Attrs().HardwareAddr, nil
+	return vxlan.HardwareAddr, nil
 }
