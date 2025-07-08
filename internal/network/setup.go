@@ -1,6 +1,7 @@
 package network
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
 	"net"
@@ -94,12 +95,18 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 	}
 	log.Printf("[INFO] Found it ,IP %v\n", addr[0].IP.String())
 
+    hwaddr := make(net.HardwareAddr, 6)
+    if _, err := rand.Read(hwaddr); err != nil {
+        log.Printf("Could not generate random MAC address: %v", err)
+        return err
+    }
+	hwaddr[0] |= 0x02
 
 	vxlan := &netlink.Vxlan{
 
 		LinkAttrs: netlink.LinkAttrs{
 			Name: name,
-			MTU: 1500,
+			HardwareAddr: hwaddr,
 		},
 		VxlanId:      vni,
 		VtepDevIndex: ifVeth.Attrs().Index,
