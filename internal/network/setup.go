@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"rbati-cni/internal/kube"
 
 	"github.com/vishvananda/netlink"
 )
