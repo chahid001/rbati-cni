@@ -2,6 +2,7 @@ package utils
 
 import (
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"rbati-cni/internal/logs"
@@ -36,6 +37,17 @@ func ProducerConsumer(PodSubent string) error {
 
 	return nil
 
+}
+
+func GetMAC(Link string) net.HardwareAddr{
+
+	link, err := netlink.LinkByName(Link)
+
+	if err != nil {
+		log.Printf("[ERROR] Failed to create ENV find Link: %v\n", err)
+	}
+
+	return link.Attrs().HardwareAddr
 }
 
 

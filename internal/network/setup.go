@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"rbati-cni/internal/kube"
 
 	"github.com/vishvananda/netlink"
 )
@@ -70,12 +71,12 @@ func SetupBridge(name, ip string) error {
 	return nil  
 }
 
-func SetupVXLAN(name, iface, bridge string, vni int) (net.HardwareAddr, error) {
+func SetupVXLAN(name, iface, bridge string, vni int) error {
 
-	ln, err := netlink.LinkByName(name)
+	_, err := netlink.LinkByName(name)
 	if err == nil {
 		log.Println("[INFO] VXLAN interface already exists")
-		return ln.Attrs().HardwareAddr, nil
+		return nil
 	}
 	
 	log.Printf("[INFO] Setup VXLAN Based on Interface %v\n", iface)
@@ -83,14 +84,14 @@ func SetupVXLAN(name, iface, bridge string, vni int) (net.HardwareAddr, error) {
 	ifVeth, err := netlink.LinkByName(iface)
 	if err != nil {
 		log.Printf("Couldn't Get Iface %v\n", err)
-		return nil, err
+		return err
 	}
 
 	log.Printf("[INFO] Looking for default IP on Interface %v\n", iface)
 	addr, err := netlink.AddrList(ifVeth, netlink.FAMILY_V4)
 	if err != nil {
 		log.Printf("Couldn't Get IPs from Iface %v\n", err)
-		return nil, err
+		return err
 	}
 	log.Printf("[INFO] Found it ,IP %v\n", addr[0].IP.String())
 
@@ -113,7 +114,7 @@ func SetupVXLAN(name, iface, bridge string, vni int) (net.HardwareAddr, error) {
 
 	if err := netlink.LinkAdd(vxlan); err != nil {
 		log.Printf("Couldn't add VXLAN interface %v\n", err)
-		return nil, err
+		return err
 	}
 
 	if err := netlink.LinkSetUp(vxlan); err != nil {
@@ -121,10 +122,8 @@ func SetupVXLAN(name, iface, bridge string, vni int) (net.HardwareAddr, error) {
 		if err := netlink.LinkDel(vxlan); err != nil {
 			log.Printf("Couldn't delete Bridge %v\n", err)
 		}
-		return nil, err
+		return err
 	}
 
-	vxlanLink, _ := netlink.LinkByName(name)
-
-	return vxlanLink.Attrs().HardwareAddr, nil
+	return nil
 }

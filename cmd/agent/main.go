@@ -76,13 +76,13 @@ func main() {
 	}
 
 	//--------------- Setup VXLAN ------------------
-	mac, err := network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
+	network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
 	if err != nil {
 		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
 		os.Exit(1)
 	}
 
-	kube.PatchNode(clientset, kube.GetNodeName(), mac)
+	kube.PatchNode(clientset, kube.GetNodeName(), utils.GetMAC(vxlanName))
 
 	// factory := informers.NewSharedInformerFactory(clientset, 0)
 
