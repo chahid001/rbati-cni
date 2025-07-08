@@ -43,8 +43,8 @@ func main() {
 
 	for { // Waiting for Bridge and Vxlan interfaces to be created
 		_, errBR := netlink.LinkByName(bridge)
-		_, errVX := netlink.LinkByName(vxlanName)
-		if errBR == nil && errVX == nil {
+		// _, errVX := netlink.LinkByName(vxlanName)
+		if errBR == nil {
 			break
 		}
 		logs.Log.Info("Waiting for CNI Agent to be initialized...")

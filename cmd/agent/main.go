@@ -75,6 +75,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	//--------------- Setup VXLAN ------------------
+	mac, err := network.SetupVXLAN(bridge, configJSON.IFace, bridge, 1001)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
+		os.Exit(1)
+	}
+
+	kube.PatchNode(clientset, kube.GetNodeName(), mac)
+
+	// factory := informers.NewSharedInformerFactory(clientset, 0)
+
+	// nodeInformer := factory.Core().V1().Nodes()
 
 
 	ticker := time.NewTicker(20 * time.Second)

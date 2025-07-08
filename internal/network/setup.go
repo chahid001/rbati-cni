@@ -69,3 +69,60 @@ func SetupBridge(name, ip string) error {
 	
 	return nil  
 }
+
+func SetupVXLAN(name, iface, bridge string, vni int) (net.HardwareAddr, error) {
+
+	ln, err := netlink.LinkByName(name)
+	if err == nil {
+		log.Println("[INFO] VXLAN interface already exists")
+		return ln.Attrs().HardwareAddr, nil
+	}
+	
+	log.Printf("[INFO] Setup VXLAN Based on Interface %v\n", iface)
+
+	ifVeth, err := netlink.LinkByName(iface)
+	if err != nil {
+		log.Printf("Couldn't Get Iface %v\n", err)
+		return nil, err
+	}
+
+	log.Printf("[INFO] Looking for default IP on Interface %v\n", iface)
+	addr, err := netlink.AddrList(ifVeth, netlink.FAMILY_V4)
+	if err != nil {
+		log.Printf("Couldn't Get IPs from Iface %v\n", err)
+		return nil, err
+	}
+	log.Printf("[INFO] Found it ,IP %v\n", addr[0].IP.String())
+
+
+	vxlan := &netlink.Vxlan{
+
+		LinkAttrs: netlink.LinkAttrs{
+			Name: name,
+			MTU: 1500,
+		},
+		VxlanId:      vni,
+		VtepDevIndex: ifVeth.Attrs().Index,
+		SrcAddr:      addr[0].IP, 
+		Port:         4789,
+		Learning:     false, 
+		Proxy:        false,
+		L2miss:       false,
+		L3miss:       false,
+	}
+
+	if err := netlink.LinkAdd(vxlan); err != nil {
+		log.Printf("Couldn't add VXLAN interface %v\n", err)
+		return nil, err
+	}
+
+	if err := netlink.LinkSetUp(vxlan); err != nil {
+		log.Printf("Couldn't set VXLAN interface UP %v\n", err)
+		if err := netlink.LinkDel(vxlan); err != nil {
+			log.Printf("Couldn't delete Bridge %v\n", err)
+		}
+		return nil, err
+	}
+
+	return vxlan.Attrs().HardwareAddr, nil
+}
