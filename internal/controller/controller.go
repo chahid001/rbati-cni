@@ -6,7 +6,7 @@ import (
 	// "rbati-cni/internal/kube"
 
 	// "github.com/vishvananda/netlink"
-	// v1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -16,9 +16,10 @@ import (
 
 type Controller struct {
 	
-	clientSet 	*kubernetes.Clientset
-	nodeName	string
-	Vxlan 		string
+	clientSet 		*kubernetes.Clientset
+	nodeName		string
+	Vxlan 			string
+	processedNodes 	map[string]bool
 }
 
 
@@ -28,6 +29,7 @@ func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan st
 		clientSet: _clientSet,
 		nodeName: _nodeName,
 		Vxlan: _Vxlan,
+		processedNodes: make(map[string]bool),
 	}
 
 }
@@ -54,8 +56,12 @@ func (c *Controller) Run(stopCh chan struct{}) {
 
 func (c *Controller) onNodeAddfunc(obj interface{}) {
 
-	log.Println("Im inside OnNodeAdd")
-	// node := obj.(*v1.Node)
+	node := obj.(*v1.Node)
+
+	if !c.processedNodes[node.Name] {
+		log.Println("Im inside OnNodeAdd")
+		c.processedNodes[node.Name] = true
+	}
 
 	// if node.Name == c.nodeName {
 	// 	return
@@ -124,6 +130,28 @@ func (c *Controller) onNodeAddfunc(obj interface{}) {
 	With onNodeUpdate i can return untill the node is ready to process the task.
 */
 
+func isNodeReady(node *v1.Node) bool {
+
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == v1.NodeReady && condition.Status == v1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+
+}
+
 func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) { 
-	log.Println("Im inside OnNodeUpdate")
+
+	oldNode := oldObj.(*v1.Node)
+	newNode := newObj.(*v1.Node)
+
+	oldReady := isNodeReady(oldNode)
+	newReady := isNodeReady(newNode)
+
+	if !oldReady && newReady {
+		log.Printf("Node %s transitioned to Ready state. Processing.", newNode.Name)
+		log.Println("Im inside OnNodeUpdate")
+	}
+
 }
