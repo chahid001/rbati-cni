@@ -72,15 +72,13 @@ func main() {
 	}	
 
 	//--------------- Setup Bridge ------------------
-	err = network.SetupBridge(bridge, gatewayIP)
-	if err != nil {
+	if err := network.SetupBridge(bridge, gatewayIP); err != nil {
 		log.Printf("[ERROR] Failed to create Bridge device: %v\n", err)
 		os.Exit(1)
 	}
 
 	//--------------- Setup VXLAN ------------------
-	network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001)
-	if err != nil {
+	if err := network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001); err != nil {
 		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
 		os.Exit(1)
 	}

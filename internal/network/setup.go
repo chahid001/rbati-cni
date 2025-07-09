@@ -2,9 +2,11 @@ package network
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log"
 	"net"
+	"syscall"
 
 	"github.com/vishvananda/netlink"
 )
@@ -27,7 +29,7 @@ func SetupBridge(name, ip string) error {
 
         if _, ok := err.(netlink.LinkNotFoundError); ok {
             log.Printf("[INFO] Bridge %s not found. Creating it.\n", name)
-            la := netlink.LinkAttrs{Name: name, MTU: 1450}
+            la := netlink.LinkAttrs{Name: name}
             newBridge := &netlink.Bridge{LinkAttrs: la}
             if err := netlink.LinkAdd(newBridge); err != nil {
                 log.Printf("[ERROR] Could not create bridge %s: %v\n", name, err)
@@ -42,33 +44,53 @@ func SetupBridge(name, ip string) error {
         log.Printf("[INFO] Bridge %s already exists. Using existing device.\n", name)
     }
 
-	bridgeIP := net.ParseIP(ip)
-	// bridgeMask := bridgeIP.DefaultMask()
-	
-	// ones, _ := bridgeMask.Size()
+    targetIP := net.ParseIP(ip)
+    if targetIP == nil {
+        return fmt.Errorf("could not parse target IP: %s", ip)
+    }
 
-	bridgeCIDR := fmt.Sprintf("%s/24", bridgeIP.String())
+    addrs, err := netlink.AddrList(bridge, netlink.FAMILY_V4)
+    if err != nil {
+        log.Printf("[ERROR] Couldn't get address list of bridge %v\n", err)
+        return err
+    }
 
-	addr, err := netlink.ParseAddr(bridgeCIDR)
-	if err != nil {
-		bridgeCleanUP(bridge, err)
-		return err
-	}
-	log.Println("[INFO] Parsed Address")
+    hasIP := false
+    for _, addr := range addrs {
+        if addr.IPNet.IP.Equal(targetIP) {
+            hasIP = true
+            break
+        }
+    }
 
-	if err := netlink.AddrAdd(bridge, addr); err != nil {
-		bridgeCleanUP(bridge, err)
-		return err
-	}	
-	log.Printf("[INFO] Added IP Address '%v' to Bridge %v\n", bridgeIP.String() ,name)
-	
-	if err := netlink.LinkSetUp(bridge); err != nil {
-		bridgeCleanUP(bridge, err)
-		return err
-	}
-	log.Printf("[INFO] Set Bridge %v UP\n", name)
-	
-	return nil  
+    if !hasIP {
+        bridgeCIDR := fmt.Sprintf("%s/24", ip)
+        addr, err := netlink.ParseAddr(bridgeCIDR)
+        if err != nil {
+            return fmt.Errorf("failed to parse bridge CIDR: %w", err)
+        }
+
+        log.Printf("[INFO] Adding IP Address '%s' to Bridge %s\n", ip, name)
+        
+ 
+        if err := netlink.AddrAdd(bridge, addr); err != nil {
+            if errors.Is(err, syscall.EEXIST) {
+                log.Printf("[WARN] IP %s already exists on bridge %s, but was not found in initial check. Continuing.", ip, name)
+            } else {
+                return fmt.Errorf("could not add IP %s to bridge %s: %w", ip, name, err)
+            }
+        }
+
+    } else {
+        log.Printf("[INFO] Bridge %s already has the correct IP.", name)
+    }
+
+    if err := netlink.LinkSetUp(bridge); err != nil {
+        return fmt.Errorf("failed to set bridge %s up: %w", name, err)
+    }
+    log.Printf("[INFO] Set Bridge %s UP\n", name)
+
+    return nil
 }
 
 func SetupVXLAN(name, iface, bridge string, vni int) error {
