@@ -28,7 +28,7 @@ func GetNodeName() string {
 }
 
 
-func GetInternalIP(node corev1.Node) net.IP {
+func GetInternalIP(node *corev1.Node) net.IP {
 
 	for _, addr := range node.Status.Addresses {
 

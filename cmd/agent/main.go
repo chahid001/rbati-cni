@@ -3,11 +3,12 @@ package main
 import (
 	"log"
 	"os"
+	"rbati-cni/internal/controller"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/utils"
-	"time"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -24,6 +25,8 @@ func init() {
 	configJSON = load.LoadFromFile("/etc/cni/net.d/10-rbati.conf")
 
 }
+
+
 
 func main() {
 
@@ -84,17 +87,12 @@ func main() {
 
 	kube.PatchNode(clientset, kube.GetNodeName(), utils.GetMAC(vxlanName))
 
-	// factory := informers.NewSharedInformerFactory(clientset, 0)
+	
+	Controller := controller.NewController(clientset, kube.GetNodeName(), vxlanName)
 
-	// nodeInformer := factory.Core().V1().Nodes()
+	stopCh := make(chan struct{})
+	defer close(stopCh)
 
-
-	ticker := time.NewTicker(20 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		log.Println("[INFO] Sync complete.")
-		<-ticker.C
-	}
+	Controller.Run(stopCh)
 
 }

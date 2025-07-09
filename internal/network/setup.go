@@ -95,12 +95,22 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 	}
 	log.Printf("[INFO] Found it ,IP %v\n", addr[0].IP.String())
 
+
+/*
+	The kernel create 2 mac addresses, A random One for link/ether 
+	that he use on display ip a and for actual L2 trafic.
+	And the second is to generate the link-local IPV6 and the one actually 
+	reported by my netlink. This made it impossible to have a reliable fdb and arp infra.
+	
+	This is why i generate my own mac address and i assign it to the interface .
+*/
+
     hwaddr := make(net.HardwareAddr, 6)
-    if _, err := rand.Read(hwaddr); err != nil {
+    if _, err := rand.Read(hwaddr); err != nil { // Filling it randomly
         log.Printf("Could not generate random MAC address: %v", err)
         return err
     }
-	hwaddr[0] |= 0x02
+	hwaddr[0] |= 0x02 // Setting the MAC to 1 local 
 
 	vxlan := &netlink.Vxlan{
 
@@ -123,7 +133,7 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 		return err
 	}
 
-	podCIDR := "10.42.0.0/32"
+	podCIDR := "10.42.0.0/32" // Change for later 
 
 	vxlanAddr, err := netlink.ParseAddr(podCIDR)
 	if err != nil {
