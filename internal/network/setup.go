@@ -182,7 +182,7 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 
 func AddFDBEntry(vxlanInterface string, remoteMAC net.HardwareAddr, remoteVTEP net.IP) error {
 
-	cmd := exec.Command("sudo", "bridge", "fdb", "append",
+	cmd := exec.Command("bridge", "fdb", "append",
         remoteMAC.String(),
         "dev",
         vxlanInterface,
