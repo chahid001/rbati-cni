@@ -5,7 +5,6 @@ import (
 	"net"
 	"rbati-cni/internal/kube"
 	"strings"
-	"syscall"
 
 	"github.com/vishvananda/netlink"
 	v1 "k8s.io/api/core/v1"
