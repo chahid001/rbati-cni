@@ -45,20 +45,23 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: rbati-agent-node-reader
+  name: rbati-agent-controller
 rules:
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list", "patch", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: rbati-agent-node-reader-binding
+  name: rbati-agent-controller-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rbati-agent-node-reader
+  name: rbati-agent-controller
 subjects:
 - kind: ServiceAccount
   name: rbati-agent
