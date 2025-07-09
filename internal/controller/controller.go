@@ -107,7 +107,7 @@ func (c *Controller) proceedNode(node *v1.Node) {
 
 	fdbEntry := netlink.Neigh{
 		LinkIndex: 		c.Vxlan.Attrs().Index,
-		Family:       	syscall.AF_BRIDGE,
+		Flags:        	netlink.NTF_SELF,
 		State:        	netlink.NUD_PERMANENT,
 		IP: 			internalIP,
 		HardwareAddr: 	vxlanMAC,	
