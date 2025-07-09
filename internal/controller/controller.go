@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"rbati-cni/internal/kube"
+	"rbati-cni/internal/network"
 	"strings"
 
 	"github.com/vishvananda/netlink"
@@ -103,18 +104,7 @@ func (c *Controller) proceedNode(node *v1.Node) {
 
 	//---------------- FDB -------------
 
-
-	fdbEntry := netlink.Neigh{
-		LinkIndex:     c.Vxlan.Attrs().Index,
-		Family:        netlink.FAMILY_V4,
-		State:         netlink.NUD_PERMANENT,
-		Flags:         netlink.NTF_SELF,
-		HardwareAddr:  vxlanMAC,
-	}
-
-	fdbEntry.IP = internalIP
-
-	if err := netlink.NeighAppend(&fdbEntry); err != nil { // Netlink equivalent to bridge fdb
+	if err := network.AddFDBEntry(c.Vxlan.Attrs().Name, vxlanMAC, internalIP) ; err != nil { // Netlink equivalent to bridge fdb
 		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
 		return
 	}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
@@ -176,4 +178,27 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 	}
 
 	return nil
+}
+
+func AddFDBEntry(vxlanInterface string, remoteMAC net.HardwareAddr, remoteVTEP net.IP) error {
+
+	cmd := exec.Command("sudo", "bridge", "fdb", "append",
+        remoteMAC.String(),
+        "dev",
+        vxlanInterface,
+        "dst",
+        remoteVTEP.String(),
+    )
+
+    log.Printf("[INFO] Executing command: %s", strings.Join(cmd.Args, " "))
+
+    // Run the command and capture any output/error
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        log.Printf("[ERROR] Failed to execute 'bridge fdb' command: %v. Output: %s", err, string(output))
+        return fmt.Errorf("bridge fdb command failed: %w", err)
+    }
+
+    log.Printf("Successfully shelled out to add FDB entry for peer %s", remoteVTEP.String())
+    return nil
 }
