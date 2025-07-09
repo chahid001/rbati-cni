@@ -9,6 +9,7 @@ import (
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/utils"
 
+	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -87,7 +88,11 @@ func main() {
 
 	log.Printf("[Agent] Finished the setup with success !")
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
-	Controller := controller.NewController(clientset, kube.GetNodeName(), vxlanName)
+
+	vxlan, _ := netlink.LinkByName(vxlanName)
+
+
+	Controller := controller.NewController(clientset, kube.GetNodeName(), vxlan)
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)

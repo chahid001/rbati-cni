@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"rbati-cni/internal/kube"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 	v1 "k8s.io/api/core/v1"
@@ -18,12 +19,12 @@ type Controller struct {
 	
 	clientSet 		*kubernetes.Clientset
 	nodeName		string
-	Vxlan 			string
+	Vxlan 			netlink.Link
 	processedNodes 	map[string]bool
 }
 
 
-func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan string) *Controller {
+func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan netlink.Link) *Controller {
 	
 	return &Controller{
 		clientSet: _clientSet,
@@ -69,23 +70,24 @@ func (c *Controller) proceedNode(node *v1.Node) {
 	}
 	log.Printf("[INFO] Found PeerSubnet: %v\n", peerSubnet.String())
 
-	vxlanMAC, err := net.ParseMAC(node.Annotations["cni.rbati.io/vxlan-mac"]) // Get VXLAN MAC
+
+	macString := node.Annotations["cni.rbati.io/vxlan-mac"]
+    log.Printf("[DEBUG] Raw annotation string being parsed: %q", macString)
+    
+    cleanMacString := strings.TrimSpace(macString)
+
+	vxlanMAC, err := net.ParseMAC(cleanMacString) // Get VXLAN MAC
+
 	if err != nil {
 		log.Printf("[ERROR] Couldn't parse VXLAN mac address: %v", err)
 	}
 	log.Printf("[INFO] Found VXLAN MAC: %v\n", vxlanMAC.String())
 
 
-	vx, err := netlink.LinkByName(c.Vxlan)
-	if err == nil {
-		log.Println("[INFO] VXLAN interface already exists")
-		return
-	}
-
 	//---------------- Routing -------------
 
 	route := netlink.Route{
-		LinkIndex: vx.Attrs().Index,
+		LinkIndex: c.Vxlan.Attrs().Index,
 		Dst: peerSubnet,
 		Scope: netlink.SCOPE_LINK,
 	}
@@ -99,7 +101,7 @@ func (c *Controller) proceedNode(node *v1.Node) {
 	//---------------- FDB -------------
 
 	neighFDB := netlink.Neigh{
-		LinkIndex: 		vx.Attrs().Index,
+		LinkIndex: 		c.Vxlan.Attrs().Index,
 		Family:       	netlink.FAMILY_V4,
 		State:        	netlink.NUD_PERMANENT,
 		Flags:        	netlink.NTF_SELF,
