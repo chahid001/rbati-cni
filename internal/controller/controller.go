@@ -152,17 +152,17 @@ func isNodeReady(node *v1.Node) bool {
 }
 
 func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) { 
-
-	oldNode := oldObj.(*v1.Node)
+	
 	newNode := newObj.(*v1.Node)
-
-	oldReady := isNodeReady(oldNode)
-	newReady := isNodeReady(newNode)
-
-	if !oldReady && newReady {
-		log.Printf("Node %s transitioned to Ready state. Processing.", newNode.Name)
-		log.Println("Im inside OnNodeUpdate")
-		c.proceedNode(newNode)
+	if !isNodeReady(newNode) {
+		return
 	}
+
+	if c.processedNodes[newNode.Name] {
+		return
+	}
+	log.Printf("Node %s transitioned to Ready state. Processing.", newNode.Name)
+	log.Println("Im inside OnNodeUpdate")
+	c.proceedNode(newNode)
 
 }
