@@ -40,6 +40,7 @@ func (c *Controller) Run(stopCh chan struct{}) {
 
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.onNodeAddfunc,
+		UpdateFunc: c.onNodeUpdatefunc,
 	})
 
 	factory.Start(stopCh)
@@ -114,4 +115,15 @@ func (c *Controller) onNodeAddfunc(obj interface{}) {
 	// }
 	// log.Println("FDB entry added successfully.")
 
+}
+
+/*
+	When a node is added, it not garantied it will be ready
+	so the onNodeAdd will be called, but i can't perform nothing
+	because it does not have yet all the info i need.
+	With onNodeUpdate i can return untill the node is ready to process the task.
+*/
+
+func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) { 
+	log.Println("Im inside OnNodeUpdate")
 }
