@@ -43,6 +43,12 @@ func (c *Controller) Run(stopCh chan struct{}) {
 	})
 
 	factory.Start(stopCh)
+    log.Println("[INFO] Waiting for informer caches to sync...")
+    if !cache.WaitForCacheSync(stopCh, nodeInformer.Informer().HasSynced) {
+        log.Fatalln("failed to sync caches")
+    }
+    log.Println("[INFO] Informer caches synced. Controller is running.")
+	<- stopCh
 }
 
 func (c *Controller) onNodeAddfunc(obj interface{}) {

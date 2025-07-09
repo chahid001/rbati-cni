@@ -30,7 +30,7 @@ func init() {
 
 func main() {
 
-	log.Printf("[INFO] Controller starting on node: %s\n", kube.GetNodeName())
+	log.Printf("[INFO] [Agent 1/2] Agent Setup starting on node: %s\n", kube.GetNodeName())
 
 	bridge := bridgeName
 
@@ -85,7 +85,8 @@ func main() {
 
 	kube.PatchNode(clientset, kube.GetNodeName(), utils.GetMAC(vxlanName))
 
-	
+	log.Printf("[Agent] Finished the setup with success !")
+	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
 	Controller := controller.NewController(clientset, kube.GetNodeName(), vxlanName)
 
 	stopCh := make(chan struct{})
