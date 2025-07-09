@@ -6,6 +6,7 @@ import (
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/network"
 	"strings"
+	"sync"
 
 	"github.com/vishvananda/netlink"
 	v1 "k8s.io/api/core/v1"
@@ -22,6 +23,9 @@ type Controller struct {
 	nodeName		string
 	Vxlan 			netlink.Link
 	processedNodes 	map[string]bool
+	processedPods 	map[string]bool
+	vxlanMacs      	map[string]net.HardwareAddr
+	vxlanMacsMutex 	sync.RWMutex
 }
 
 
@@ -32,6 +36,8 @@ func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan ne
 		nodeName: _nodeName,
 		Vxlan: _Vxlan,
 		processedNodes: make(map[string]bool),
+		processedPods: make(map[string]bool),
+		vxlanMacs: make(map[string]net.HardwareAddr),
 	}
 
 }
@@ -40,11 +46,16 @@ func (c *Controller) Run(stopCh chan struct{}) {
 
 	factory := informers.NewSharedInformerFactory(c.clientSet, 0)
 
-	nodeInformer := factory.Core().V1().Nodes()
+	nodeInformer 	:= factory.Core().V1().Nodes()
+	podInformer 	:= factory.Core().V1().Pods()
 
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.onNodeAddfunc,
 		UpdateFunc: c.onNodeUpdatefunc,
+	})
+	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.onPodAdd,
+		UpdateFunc: c.onPodUpdate,
 	})
 
 	factory.Start(stopCh)
@@ -87,6 +98,9 @@ func (c *Controller) proceedNode(node *v1.Node) {
 	}
 	log.Printf("[INFO] Found VXLAN MAC: %v\n", vxlanMAC.String())
 
+	c.vxlanMacsMutex.Lock()
+	c.vxlanMacs[node.Name] = vxlanMAC
+	c.vxlanMacsMutex.Unlock()
 
 	//---------------- Routing -------------
 
@@ -113,6 +127,47 @@ func (c *Controller) proceedNode(node *v1.Node) {
 
 }
 
+
+func (c *Controller) proceedPod(pod *v1.Pod) {
+
+	if pod.Spec.NodeName == c.nodeName {
+		return
+	}
+
+	if pod.Status.Phase != v1.PodRunning || pod.Status.PodIP == "" {
+		return
+	}
+
+	podIP := net.ParseIP(pod.Status.PodIP)
+
+	c.vxlanMacsMutex.Lock()
+	mac, ok := c.vxlanMacs[pod.Spec.NodeName]
+	c.vxlanMacsMutex.Unlock()
+
+	if !ok {
+		log.Printf("Could not find VXLAN MAC for node %s yet.", pod.Spec.NodeName)
+		return
+	}
+
+	neighEntry := netlink.Neigh{
+		LinkIndex: c.Vxlan.Attrs().Index,
+		IP: podIP,
+		HardwareAddr: mac,
+		Family: netlink.FAMILY_V4,
+		State:        netlink.NUD_PERMANENT,		
+	}
+
+	if err := netlink.NeighAdd(&neighEntry); err != nil {
+		log.Printf("Failed to add neighbor: %v\n", err)
+		return
+	}
+
+	c.processedPods[pod.Name] = true
+
+}
+
+
+
 func (c *Controller) onNodeAddfunc(obj interface{}) {
 
 	node := obj.(*v1.Node)
@@ -123,6 +178,26 @@ func (c *Controller) onNodeAddfunc(obj interface{}) {
 	}
 
 }
+
+
+func (c *Controller) onPodAdd(obj interface{}) {
+	pod := obj.(*v1.Pod)
+
+	if c.processedNodes[pod.Name] {
+		return
+	}
+
+	c.proceedPod(pod)
+}
+
+func (c *Controller) onPodUpdate(oldObj, newObj interface{}) {
+	pod := newObj.(*v1.Pod)
+	if c.processedNodes[pod.Name] {
+		return
+	}
+	c.proceedPod(pod)
+}
+
 
 /*
 	When a node is added, it not garantied it will be ready
