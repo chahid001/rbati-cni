@@ -70,8 +70,11 @@ func (c *Controller) proceedNode(node *v1.Node) {
 	}
 	log.Printf("[INFO] Found PeerSubnet: %v\n", peerSubnet.String())
 
-
-	macString := node.Annotations["cni.rbati.io/vxlan-mac"]
+	macString, ok := node.Annotations["cni.rbati.io/vxlan-mac"]
+	if !ok || macString == "" {
+		log.Printf("[INFO] VXLAN MAC annotation for node %s not found yet. Will process on update.", node.Name)
+		return 
+	}
     log.Printf("[DEBUG] Raw annotation string being parsed: %q", macString)
     
     cleanMacString := strings.TrimSpace(macString)
