@@ -5,6 +5,7 @@ import (
 	"net"
 	"rbati-cni/internal/kube"
 	"strings"
+	"syscall"
 
 	"github.com/vishvananda/netlink"
 	v1 "k8s.io/api/core/v1"
@@ -103,17 +104,16 @@ func (c *Controller) proceedNode(node *v1.Node) {
 
 	//---------------- FDB -------------
 
-	neighFDB := netlink.Neigh{
+
+	fdbEntry := netlink.Neigh{
 		LinkIndex: 		c.Vxlan.Attrs().Index,
-		Family:       	netlink.FAMILY_V4,
+		Family:       	syscall.AF_BRIDGE,
 		State:        	netlink.NUD_PERMANENT,
-		Flags:        	netlink.NTF_SELF,
-		Type:         	netlink.NDA_DST,
 		IP: 			internalIP,
 		HardwareAddr: 	vxlanMAC,	
 	}
 
-	if err := netlink.NeighAdd(&neighFDB); err != nil {
+	if err := netlink.NeighAppend(&fdbEntry); err != nil { // Netlink equivalent to bridge fdb
 		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
 		return
 	}
