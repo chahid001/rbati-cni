@@ -7,6 +7,7 @@ import (
 	"rbati-cni/internal/network"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	v1 "k8s.io/api/core/v1"
@@ -44,7 +45,7 @@ func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan ne
 
 func (c *Controller) Run(stopCh chan struct{}) {
 
-	factory := informers.NewSharedInformerFactory(c.clientSet, 0)
+	factory := informers.NewSharedInformerFactory(c.clientSet, 1*time.Minute)
 
 	nodeInformer 	:= factory.Core().V1().Nodes()
 	podInformer 	:= factory.Core().V1().Pods()
@@ -157,6 +158,8 @@ func (c *Controller) proceedPod(pod *v1.Pod) {
 		State:        netlink.NUD_PERMANENT,		
 	}
 
+	_ = netlink.NeighDel(&neighEntry) // Delete any existing Neigh entry for this ip
+
 	if err := netlink.NeighAdd(&neighEntry); err != nil {
 		log.Printf("Failed to add neighbor: %v\n", err)
 		return
@@ -183,7 +186,7 @@ func (c *Controller) onNodeAddfunc(obj interface{}) {
 func (c *Controller) onPodAdd(obj interface{}) {
 	pod := obj.(*v1.Pod)
 
-	if c.processedNodes[pod.Name] {
+	if c.processedPods[pod.Name] {
 		return
 	}
 
@@ -192,7 +195,7 @@ func (c *Controller) onPodAdd(obj interface{}) {
 
 func (c *Controller) onPodUpdate(oldObj, newObj interface{}) {
 	pod := newObj.(*v1.Pod)
-	if c.processedNodes[pod.Name] {
+	if c.processedPods[pod.Name] {
 		return
 	}
 	c.proceedPod(pod)
