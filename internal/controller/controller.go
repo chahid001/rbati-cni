@@ -71,7 +71,7 @@ func (c *Controller) Run(stopCh chan struct{}) {
 	<- stopCh
 }
 
-func (c *Controller) proceedNode(node *v1.Node) {
+func (c *Controller) proceedNode(node *v1.Node, Kind bool) {
 
 	if node.Name == c.nodeName {
 		return
@@ -105,6 +105,13 @@ func (c *Controller) proceedNode(node *v1.Node) {
 	c.vxlanMacsMutex.Lock()
 	c.vxlanMacs[node.Name] = vxlanMAC
 	c.vxlanMacsMutex.Unlock()
+	
+	//---------------- FDB -------------
+
+	if err := network.AddFDBEntry(c.Vxlan.Attrs().Name, vxlanMAC, internalIP, Kind) ; err != nil { // Netlink equivalent to bridge fdb
+		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
+		return
+	}
 
 	//---------------- Routing -------------
 
@@ -114,31 +121,34 @@ func (c *Controller) proceedNode(node *v1.Node) {
 		Scope: netlink.SCOPE_LINK,
 	}
 	
-	if err := netlink.RouteAdd(&route); err != nil {
-		log.Printf("[ERROR] Failed to add route: %v", err)
-		return
+	if Kind {
+		if err := netlink.RouteAdd(&route); err != nil {
+			log.Printf("[ERROR] Failed to add route: %v", err)
+			return
+		}
+		log.Println("Route added successfully.")
+		
+		c.processedNodes[node.Name] = true
+	
+	} else {
+		if err := netlink.RouteDel(&route); err != nil {
+			log.Printf("[ERROR] Failed to add route: %v", err)
+			return
+		}
+		log.Println("Route Deleted successfully.")	
+		
+		c.vxlanMacsMutex.Lock()
+		delete(c.vxlanMacs, node.Name)
+		c.vxlanMacsMutex.Unlock()
+		delete(c.processedPods, node.Name)	
 	}
-	log.Println("Route added successfully.")
-
-	//---------------- FDB -------------
-
-	if err := network.AddFDBEntry(c.Vxlan.Attrs().Name, vxlanMAC, internalIP, true) ; err != nil { // Netlink equivalent to bridge fdb
-		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
-		return
-	}
-	c.processedNodes[node.Name] = true
-	log.Println("FDB entry added successfully.")
 
 }
 
 
-func (c *Controller) proceedPod(pod *v1.Pod) {
+func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 
 	if pod.Spec.NodeName == c.nodeName {
-		return
-	}
-
-	if pod.Status.Phase != v1.PodRunning || pod.Status.PodIP == "" {
 		return
 	}
 
@@ -156,107 +166,78 @@ func (c *Controller) proceedPod(pod *v1.Pod) {
 
 	log.Printf("[DEBUG] Adding neigh for POD IP %s.", podIP.String())
 	neighEntry := netlink.Neigh{
-		LinkIndex: c.Vxlan.Attrs().Index,
-		IP: podIP,
-		HardwareAddr: mac,
-		Family: netlink.FAMILY_V4,
-		State:        netlink.NUD_PERMANENT,		
+		LinkIndex: 		c.Vxlan.Attrs().Index,
+		IP: 			podIP,
+		HardwareAddr:	mac,
+		Family: 		netlink.FAMILY_V4,
+		State:        	netlink.NUD_PERMANENT,		
 	}
 
-	_ = netlink.NeighDel(&neighEntry) // Delete any existing Neigh entry for this ip
-
-	if err := netlink.NeighAdd(&neighEntry); err != nil {
-		log.Printf("Failed to add neighbor: %v\n", err)
-		return
+	if err := netlink.NeighDel(&neighEntry); err != nil {
+		log.Printf("Failed to delete neighbor: %v\n", err)
+		if !Kind {
+			return
+		}
 	}
-	log.Printf("[DEBUG] Added neigh for POD IP %s with success.", podIP.String())
-	c.processedPods[pod.Name] = true
+
+	if Kind {
+		if err := netlink.NeighAdd(&neighEntry); err != nil {
+			log.Printf("Failed to add neighbor: %v\n", err)
+			return
+		}
+		log.Printf("[DEBUG] Added neigh for POD IP %s with success.", podIP.String())
+		c.processedPods[pod.Name] = true
+	} else {
+		c.vxlanMacsMutex.Lock()
+		delete(c.vxlanMacs, pod.Spec.NodeName)
+		c.vxlanMacsMutex.Unlock()
+		delete(c.processedPods, pod.Name)
+	}
+
+	
 
 }
 
 
-
+/////////////////////////////////////
+/////			Node
+////////////////////////////////////
 func (c *Controller) onNodeAddfunc(obj interface{}) {
 
 	node := obj.(*v1.Node)
 
 	if !c.processedNodes[node.Name]  && isNodeReady(node){
-		log.Println("Im inside OnNodeAdd")
-		c.proceedNode(node)
+		c.proceedNode(node, true)
 	}
 
 }
 
-// func (c *Controller) getNodeData(node *v1.Node) {
+func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) { 
+	
+	newNode := newObj.(*v1.Node)
+	if !isNodeReady(newNode) {
+		return
+	}
 
+	if c.processedNodes[newNode.Name] {
+		return
+	}
+	log.Printf("Node %s transitioned to Ready state. Processing.", newNode.Name)
+	c.proceedNode(newNode, true)
 
-
-// }
+}
 
 func (c *Controller) onNodeDelfunc(obj interface{}) {
 
 	node := obj.(*v1.Node)
 
-	if node.Name == c.nodeName {
-		return
-	}
-
-	internalIP := kube.GetInternalIP(node) // Get internal IP
-	log.Printf("[INFO] Found Internal IP: %v\n", internalIP)
-
-	_, peerSubnet, err := net.ParseCIDR(node.Spec.PodCIDR) // Get POD CIDR
-	if err != nil {
-		log.Printf("[ERROR] Couldn't get POD CIDR: %v", err)
-	}
-	log.Printf("[INFO] Found PeerSubnet: %v\n", peerSubnet.String())
-
-	macString, ok := node.Annotations[types.MAC_ANNOTATION]
-	if !ok || macString == "" {
-		log.Printf("[INFO] VXLAN MAC annotation for node %s not found yet. Will process on update.", node.Name)
-		return 
-	}    
-    cleanMacString := strings.TrimSpace(macString)
-
-	vxlanMAC, err := net.ParseMAC(cleanMacString) // Get VXLAN MAC
-
-	if err != nil {
-		log.Printf("[ERROR] Couldn't parse VXLAN mac address: %v", err)
-	}
-	log.Printf("[INFO] Found VXLAN MAC: %v\n", vxlanMAC.String())
-
-	c.vxlanMacsMutex.Lock()
-	c.vxlanMacs[node.Name] = vxlanMAC 
-	c.vxlanMacsMutex.Unlock()
-
-	//---------------- Routing -------------
-
-	route := netlink.Route{
-		LinkIndex: c.Vxlan.Attrs().Index,
-		Dst: peerSubnet,
-		Scope: netlink.SCOPE_LINK,
-	}
-	
-	if err := netlink.RouteDel(&route); err != nil {
-		log.Printf("[ERROR] Failed to delete route: %v", err)
-		return
-	}
-	log.Println("Route added successfully.")
-
-	//---------------- FDB -------------
-
-	if err := network.AddFDBEntry(c.Vxlan.Attrs().Name, vxlanMAC, internalIP, false) ; err != nil { // Netlink equivalent to bridge fdb
-		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
-		return
-	}
-	c.vxlanMacsMutex.Lock()
-	delete(c.vxlanMacs, node.Name)
-	c.vxlanMacsMutex.Unlock()
-	delete(c.processedPods, node.Name)
-	log.Println("FDB entry deleted successfully.")
+	c.proceedNode(node, false)
 
 }
 
-
+/////////////////////////////////////
+/////			Pod
+////////////////////////////////////
 func (c *Controller) onPodAdd(obj interface{}) {
 	pod := obj.(*v1.Pod)
 
@@ -264,58 +245,32 @@ func (c *Controller) onPodAdd(obj interface{}) {
 		return
 	}
 
-	c.proceedPod(pod)
-}
-
-func (c *Controller) onPodDelete(obj interface{}) {
-	
-	pod := obj.(*v1.Pod)	
-	
-	if pod.Spec.NodeName == c.nodeName {
-		return
-	}
-
 	if pod.Status.Phase != v1.PodRunning || pod.Status.PodIP == "" {
 		return
 	}
 
-	podIP := net.ParseIP(pod.Status.PodIP)
-
-	c.vxlanMacsMutex.Lock()
-	mac, ok := c.vxlanMacs[pod.Spec.NodeName]
-	c.vxlanMacsMutex.Unlock()
-
-	if !ok {
-		log.Printf("Could not find VXLAN MAC for node %s yet.", pod.Spec.NodeName)
-		return
-	}
-
-	neighEntry := netlink.Neigh{
-		LinkIndex: 		c.Vxlan.Attrs().Index,
-		IP: 			podIP,
-		HardwareAddr: 	mac,
-		Family: 		netlink.FAMILY_V4,
-		State:        	netlink.NUD_PERMANENT,		
-	}
-
-	if err := netlink.NeighDel(&neighEntry); err != nil {
-		log.Printf("Failed to add neighbor: %v\n", err)
-		return
-	}
-	c.vxlanMacsMutex.Lock()
-	delete(c.vxlanMacs, pod.Spec.NodeName)
-	c.vxlanMacsMutex.Unlock()
-	delete(c.processedPods, pod.Name)
+	c.proceedPod(pod, true)
 }
 
 func (c *Controller) onPodUpdate(oldObj, newObj interface{}) {
 	pod := newObj.(*v1.Pod)
+	
 	if c.processedPods[pod.Name] {
 		return
 	}
-	c.proceedPod(pod)
+	
+	if pod.Status.Phase != v1.PodRunning || pod.Status.PodIP == "" {
+		return
+	}
+	c.proceedPod(pod, true)
 }
 
+func (c *Controller) onPodDelete(obj interface{}) {
+	
+	pod := obj.(*v1.Pod)
+	c.proceedPod(pod, false)
+
+}
 
 /*
 	When a node is added, it not garantied it will be ready
@@ -335,18 +290,4 @@ func isNodeReady(node *v1.Node) bool {
 
 }
 
-func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) { 
-	
-	newNode := newObj.(*v1.Node)
-	if !isNodeReady(newNode) {
-		return
-	}
 
-	if c.processedNodes[newNode.Name] {
-		return
-	}
-	log.Printf("Node %s transitioned to Ready state. Processing.", newNode.Name)
-	log.Println("Im inside OnNodeUpdate")
-	c.proceedNode(newNode)
-
-}
