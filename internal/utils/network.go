@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"rbati-cni/internal/logs"
+	"rbati-cni/internal/types"
 	"runtime"
 
 	"github.com/vishvananda/netlink"
@@ -15,8 +16,8 @@ import (
 
 func ProducerConsumer(PodSubent string) error {
 
-	path := "/run/rbati-cni"
-	filename := "rbati.env"
+	path := types.ENV_PATH
+	filename := types.ENV_FILENAME
 
 	fullpath := filepath.Join(path, filename)
 

@@ -5,6 +5,7 @@ import (
 	"net"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/network"
+	"rbati-cni/internal/types"
 	"strings"
 	"sync"
 	"time"
@@ -85,7 +86,7 @@ func (c *Controller) proceedNode(node *v1.Node) {
 	}
 	log.Printf("[INFO] Found PeerSubnet: %v\n", peerSubnet.String())
 
-	macString, ok := node.Annotations["cni.rbati.io/vxlan-mac"]
+	macString, ok := node.Annotations[types.MAC_ANNOTATION]
 	if !ok || macString == "" {
 		log.Printf("[INFO] VXLAN MAC annotation for node %s not found yet. Will process on update.", node.Name)
 		return 
@@ -186,6 +187,12 @@ func (c *Controller) onNodeAddfunc(obj interface{}) {
 
 }
 
+// func (c *Controller) getNodeData(node *v1.Node) {
+
+
+
+// }
+
 func (c *Controller) onNodeDelfunc(obj interface{}) {
 
 	node := obj.(*v1.Node)
@@ -203,7 +210,7 @@ func (c *Controller) onNodeDelfunc(obj interface{}) {
 	}
 	log.Printf("[INFO] Found PeerSubnet: %v\n", peerSubnet.String())
 
-	macString, ok := node.Annotations["cni.rbati.io/vxlan-mac"]
+	macString, ok := node.Annotations[types.MAC_ANNOTATION]
 	if !ok || macString == "" {
 		log.Printf("[INFO] VXLAN MAC annotation for node %s not found yet. Will process on update.", node.Name)
 		return 

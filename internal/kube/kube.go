@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	internal_type "rbati-cni/internal/types"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -62,7 +63,7 @@ func PatchNode(clientset kubernetes.Interface, nodeName string, macVXLAN net.Har
 	patchData := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				"cni.rbati.io/vxlan-mac": macVXLAN.String(),
+				internal_type.MAC_ANNOTATION : macVXLAN.String(),
 			},
 		},
 	}

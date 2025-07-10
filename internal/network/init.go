@@ -24,7 +24,7 @@ func GetGatewayIP(podSubnet string) (string, error) {
 }
 
 
-func EnableNat(localPodCIDR, clusterCIDR string) error {
+func EnableNat(localPodCIDR, nodeIface string) error {
 	ipt, err := iptables.New()
 	if err != nil {
 		return fmt.Errorf("failed to get iptables instance: %w", err)
@@ -36,8 +36,9 @@ func EnableNat(localPodCIDR, clusterCIDR string) error {
 
 	err = ipt.AppendUnique("nat", "POSTROUTING",
 		"-s", localPodCIDR,
-		"!", "-d", clusterCIDR,
-		"-j", "MASQUERADE")
+		"-o", nodeIface,
+		"-j", "MASQUERADE",
+	)
 	if err != nil {
 		return fmt.Errorf("failed to add masquerade rule: %w", err)
 	}

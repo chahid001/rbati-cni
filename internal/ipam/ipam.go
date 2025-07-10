@@ -5,12 +5,13 @@ import (
 	"log"
 	"net"
 	"os"
+	"rbati-cni/internal/types"
 	"sync"
 
 	bolt "go.etcd.io/bbolt"
 )
 
-const bucketName = "ipam"
+const bucketName = types.BUCKET_NAME
 
 type IPAM struct {
 	subnet 		*net.IPNet
@@ -29,7 +30,7 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 		return nil, err
 	}
 
-	if err := os.MkdirAll("/var/lib/cni/rbati-cni", 0755); err != nil {
+	if err := os.MkdirAll(types.IPAM_FODLER_PATH, 0755); err != nil {
 		return nil, err
 	}
 
