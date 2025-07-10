@@ -78,6 +78,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	//--------------- Enable NAT ------------------
+
+	if err := network.EnableNat(podSubnet, "10.42.0.0/16"); err != nil {
+		log.Printf("[ERROR] Failed to Enable nat: %v\n", err)
+		os.Exit(1)
+	}
+
 	//--------------- Setup VXLAN ------------------
 	if err := network.SetupVXLAN(vxlanName, configJSON.IFace, bridge, 1001); err != nil {
 		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)

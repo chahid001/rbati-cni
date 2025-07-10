@@ -25,7 +25,7 @@ type Controller struct {
 	Vxlan 			netlink.Link
 	processedNodes 	map[string]bool
 	processedPods 	map[string]bool
-	vxlanMacs      	map[string]net.HardwareAddr
+	vxlanMacs      	map[string]net.HardwareAddr // Race condition
 	vxlanMacsMutex 	sync.RWMutex
 }
 
@@ -218,7 +218,7 @@ func (c *Controller) onNodeDelfunc(obj interface{}) {
 	log.Printf("[INFO] Found VXLAN MAC: %v\n", vxlanMAC.String())
 
 	c.vxlanMacsMutex.Lock()
-	c.vxlanMacs[node.Name] = vxlanMAC
+	c.vxlanMacs[node.Name] = vxlanMAC 
 	c.vxlanMacsMutex.Unlock()
 
 	//---------------- Routing -------------
@@ -241,6 +241,9 @@ func (c *Controller) onNodeDelfunc(obj interface{}) {
 		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
 		return
 	}
+	c.vxlanMacsMutex.Lock()
+	delete(c.vxlanMacs, node.Name)
+	c.vxlanMacsMutex.Unlock()
 	delete(c.processedPods, node.Name)
 	log.Println("FDB entry deleted successfully.")
 
@@ -292,7 +295,9 @@ func (c *Controller) onPodDelete(obj interface{}) {
 		log.Printf("Failed to add neighbor: %v\n", err)
 		return
 	}
-
+	c.vxlanMacsMutex.Lock()
+	delete(c.vxlanMacs, pod.Spec.NodeName)
+	c.vxlanMacsMutex.Unlock()
 	delete(c.processedPods, pod.Name)
 }
 
