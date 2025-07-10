@@ -163,8 +163,6 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 		return
 	}
 
-
-	log.Printf("[DEBUG] Adding neigh for POD IP %s.", podIP.String())
 	neighEntry := netlink.Neigh{
 		LinkIndex: 		c.Vxlan.Attrs().Index,
 		IP: 			podIP,
@@ -181,6 +179,7 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 	}
 
 	if Kind {
+		log.Printf("[DEBUG] Adding neigh for POD IP %s.", podIP.String())
 		if err := netlink.NeighAdd(&neighEntry); err != nil {
 			log.Printf("Failed to add neighbor: %v\n", err)
 			return
@@ -188,6 +187,7 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 		log.Printf("[DEBUG] Added neigh for POD IP %s with success.", podIP.String())
 		c.processedPods[pod.Name] = true
 	} else {
+		log.Printf("[DEBUG] Deleted neigh for POD IP %s with success.", podIP.String())
 		c.vxlanMacsMutex.Lock()
 		delete(c.vxlanMacs, pod.Spec.NodeName)
 		c.vxlanMacsMutex.Unlock()

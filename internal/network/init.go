@@ -24,25 +24,34 @@ func GetGatewayIP(podSubnet string) (string, error) {
 }
 
 
-func EnableNat(localPodCIDR, nodeIface string) error {
+func EnableNat(localPodCIDR, vxlanIface string) error {
 	ipt, err := iptables.New()
 	if err != nil {
 		return fmt.Errorf("failed to get iptables instance: %w", err)
 	}
 
-	if err := ipt.ChangePolicy("filter", "FORWARD", "ACCEPT"); err != nil {
-		log.Printf("[WARN] Could not set FORWARD policy to ACCEPT: %v. This might be okay.", err)
+	customChain := "RBATI-NAT"
+
+	if err := ipt.NewChain("nat", customChain); err != nil {
+		if e, ok := err.(*iptables.Error); !ok || e.ExitStatus() != 1 {
+			return fmt.Errorf("failed to create custom chain %s: %w", customChain, err)
+		}
 	}
 
-	err = ipt.AppendUnique("nat", "POSTROUTING",
-		"-s", localPodCIDR,
-		"-o", nodeIface,
-		"-j", "MASQUERADE",
-	)
-	if err != nil {
-		return fmt.Errorf("failed to add masquerade rule: %w", err)
+	jumpRule := []string{"-s", localPodCIDR, "-j", customChain}
+	if err := ipt.AppendUnique("nat", "POSTROUTING", jumpRule...); err != nil {
+		return fmt.Errorf("failed to add jump rule to custom chain: %w", err)
 	}
 
-	log.Println("[INFO] Successfully enabled NAT for external traffic.")
+	if err := ipt.ClearChain("nat", customChain); err != nil {
+		return fmt.Errorf("failed to flush custom chain %s: %w", customChain, err)
+	}
+
+	natRule := []string{"!", "-o", vxlanIface, "-j", "MASQUERADE"}
+	if err := ipt.Append("nat", customChain, natRule...); err != nil {
+		return fmt.Errorf("failed to add masquerade rule to custom chain: %w", err)
+	}
+
+	log.Println("[INFO] Successfully reconciled NAT for external traffic.")
 	return nil
 }
