@@ -9,6 +9,8 @@ import (
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/types"
 	"rbati-cni/internal/utils"
+	"strings"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
@@ -83,10 +85,27 @@ func main() {
 	}
 
 	//--------------- Setup VXLAN ------------------
-	if err := network.SetupVXLAN(types.VXLAN_NAME, configJSON.IFace, bridge, 1001); err != nil {
-		log.Printf("[ERROR] Failed to create VXLAN device: %v\n", err)
-		os.Exit(1)
-	}
+    const maxRetries = 10
+    const retryDelay = 3 * time.Second
+
+    for i := 0; i < maxRetries; i++ {
+
+        err = network.SetupVXLAN(types.VXLAN_NAME, configJSON.IFace, bridge, 1001)
+        if err == nil {
+            break 
+        }
+
+        if strings.Contains(err.Error(), "cannot assign requested address") {
+            log.Printf("[WARN] VXLAN not fully ready (%v). Retrying in %v...", err, retryDelay)
+            time.Sleep(retryDelay)
+            continue
+        } else {
+            log.Fatalf("[FATAL] Unrecoverable error during VXLAN setup: %v", err)
+        }
+    }
+    if err != nil {
+        log.Fatalf("[FATAL] Failed to create VXLAN device after %d retries: %v", maxRetries, err)
+    }
 
 	kube.PatchNode(clientset, kube.GetNodeName(), utils.GetMAC(types.VXLAN_NAME))
 
