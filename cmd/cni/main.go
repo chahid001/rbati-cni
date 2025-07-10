@@ -21,7 +21,7 @@ var (
 
 
 func init() {
-	logs.Init(types.LOG_FILE_PATH)
+	logs.Init()
 	envMap = load.ENV()
 	configJSON = load.RawJSONFromStdin()
 }

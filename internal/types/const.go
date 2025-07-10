@@ -7,7 +7,9 @@ const (
 	IPAM_FODLER_PATH 	= "/var/lib/cni/rbati-cni"
 	IPAM_DB_FILENAME 	= "ipam.db"
 
-	LOG_FILE_PATH 		= "/var/log/rbati-cni/rbati-cni.log"
+	LOG_FILE_PATH 		= "/var/log/rbati-cni"
+	LOG_FILE_FILENAME	= "rbati-cni.log"
+	
 	CONFIG_FILE_PATH	= "/etc/cni/net.d/10-rbati.conf"
 
 	BRIDGE_NAME 		= "rbati.0"
