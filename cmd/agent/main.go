@@ -89,7 +89,11 @@ func main() {
 	log.Printf("[Agent] Finished the setup with success !")
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
 
-	vxlan, _ := netlink.LinkByName(vxlanName)
+	vxlan, err := netlink.LinkByName(vxlanName)
+	if err != nil {
+	    log.Fatalf("[FATAL] Failed to find VXLAN link %s after setup: %v", vxlanName, err)
+		os.Exit(1)
+	}
 
 
 	Controller := controller.NewController(clientset, kube.GetNodeName(), vxlan)

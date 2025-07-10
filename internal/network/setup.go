@@ -180,9 +180,16 @@ func SetupVXLAN(name, iface, bridge string, vni int) error {
 	return nil
 }
 
-func AddFDBEntry(vxlanInterface string, remoteMAC net.HardwareAddr, remoteVTEP net.IP) error {
+// Kind -> true for Append; false for Delete
+func AddFDBEntry(vxlanInterface string, remoteMAC net.HardwareAddr, remoteVTEP net.IP, Kind bool) error {
 
-	cmd := exec.Command("bridge", "fdb", "append",
+	operation := "append"
+
+	if !Kind {
+		operation = "delete"
+	}
+
+	cmd := exec.Command("bridge", "fdb", operation,
         remoteMAC.String(),
         "dev",
         vxlanInterface,
@@ -199,6 +206,6 @@ func AddFDBEntry(vxlanInterface string, remoteMAC net.HardwareAddr, remoteVTEP n
         return fmt.Errorf("bridge fdb command failed: %w", err)
     }
 
-    log.Printf("Successfully shelled out to add FDB entry for peer %s", remoteVTEP.String())
+    log.Printf("Successfully shelled out to %s FDB entry for peer %s", operation, remoteVTEP.String())
     return nil
 }
