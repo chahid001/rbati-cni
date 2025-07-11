@@ -84,7 +84,6 @@ release: buildDev
 	@cp -r $(BIN_DIR) $(RELEASE_DIR)/$(RELEASE_NAME)/
 	@cp -r $(DEPLOY_DIR)/*.sh $(RELEASE_DIR)/$(RELEASE_name)/
 	@cp $(DEPLOY_DIR)/conf/10-rbati.conf $(RELEASE_DIR)/$(RELEASE_NAME)/
-	@cp $(DEPLOY_DIR)/$(BIN_DIR)/loopback $(RELEASE_DIR)/$(RELEASE_NAME)/$(BIN_DIR)/
 
 	@# Optional loader animation
 	@printf "📦 Packaging release"

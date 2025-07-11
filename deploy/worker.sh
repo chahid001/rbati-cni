@@ -12,12 +12,11 @@ log_info "Installing $PLUGIN_NAME on worker..."
 # Install the CNI plugin binary
 sudo install -m 755 -D "$PLUGIN_BIN" /opt/cni/bin/$PLUGIN_NAME
 
-# Try to install the loopback plugin from K3s
-if ! sudo cp /var/lib/rancher/k3s/data/*/bin/loopback /opt/cni/bin/ 2>/dev/null; then
-  log_warn "Loopback plugin not found in K3s path"
-else
-  sudo chmod +x /opt/cni/bin/loopback
-fi
+log_info "Downloading Loopback binary..."
+curl -LO https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz
+tar -xvzf cni-plugins-linux-amd64-v1.4.0.tgz ./loopback
+
+sudo cp loopback /opt/cni/bin/
 
 # Apply CNI configuration
 sudo mkdir -p /etc/cni/net.d
