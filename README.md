@@ -11,7 +11,7 @@ A simple, yet powerful Container Network Interface (CNI) for Kubernetes, built f
 ## ✨ Features
 
 * **VXLAN Overlay**: Creates a scalable Layer 2 network over your existing Layer 3 infrastructure.
-* **Centralized IPAM**: Manages IP address allocation for pods across the cluster.
+* **IPAM with embedded bolt DB**: Manages IP address allocation for pods.
 * **Controller/Agent Model**: Uses Kubernetes informers to react instantly to cluster changes (new nodes, pods, etc.).
 * **NAT for Internet Access**: Provides outbound internet connectivity for pods using `iptables` masquerading.
 * **No External Dependencies**: Doesn't require any external key-value stores like etcd.
@@ -65,18 +65,18 @@ The recommended way to install Rbati CNI is by using the assets from the latest 
 1.  **Download the latest release**
     Go to the [**Releases Page**](https://github.com/your-username/your-cni-repo/releases/latest) and download the `rbati-cni.tar.gz` archive.
 2.  **Install on Each Node**
-    Copy the archive to each node in your cluster, extract it, and run the installation script. This will copy the CNI binary and configuration to the correct locations.
+    Copy the archive to each node in your cluster, extract it, and run the installation script. This will copy the CNI binary and configuration to the correct locations and apply the RBAC and deamonset manifest.
     ```bash
     tar -xvf rbati-cni.tar.gz
     cd rbati-cni
-    sudo ./install.sh
+    sudo ./install.sh 
     ```
-3.  **Deploy the Agent Controller**
-     Apply the DaemonSet manifest to your cluster. This will deploy the controller pod to each node.
 
-     ```bash
-     kubectl apply -f [https://github.com/your-username/your-cni-repo/releases/latest/download/agent-controller.yaml](https://github.com/your-username/your-cni-repo/releases/latest/download/agent-controller.yaml)
-     ```
+    ```bash
+    tar -xvf rbati-cni.tar.gz
+    cd rbati-cni
+    sudo ./worker.sh 
+    ```
 
 Your CNI is now active! New pods will automatically use Rbati CNI for networking.
 ---
@@ -88,25 +88,36 @@ The CNI configuration is managed via a file in `/etc/cni/net.d/`, typically name
   "cniVersion": "0.4.0",
   "name": "rbati-cni",
   "type": "rbati",
+  "iface": "eth1",
   "bridge": "rbati.0"
 }
 ```
+**PS**: Please change the iface, to the default one of your system on which the VXLAN can based on for multi node networking.
 ---
+## 💻 Development Environment
+I did use K3S for my developement environement
+    ```bash
+    curl -sfL https://get.k3s.io | \
+        INSTALL_K3S_EXEC="\
+          --bind-address=<IP of the host> \
+          --node-ip=<IP of the host> \
+          --flannel-backend=none \
+          --disable-network-policy" \
+        K3S_KUBECONFIG_MODE="644" \
+        K3S_NODE_NAME=schahidS \
+    sh -
+    ```
 
 ## 💻 Development
 Want to contribute or build from source?
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/your-username/your-cni-repo.git](https://github.com/your-username/your-cni-repo.git)
-    cd your-cni-repo
+    git clone [https://github.com/chahid001/rbati-cni.git](https://github.com/chahid001/rbati-cni.git)
+    cd rbati-cni
     ```
 2.  **Build the binaries:**
     ```bash
-    make build
-    ```
-3.  **Build the Docker image:**
-    ```bash
-    make docker-build
+    make buildDev
     ```
 ---
 ## 📄 License
