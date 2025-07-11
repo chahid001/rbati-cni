@@ -1,38 +1,27 @@
 #!/bin/bash
-
-set -e
+set -euo pipefail
 
 PLUGIN_NAME="rbati-d"
 PLUGIN_BIN="/schahid/$PLUGIN_NAME"
 
-echo "[INFO] Installing $PLUGIN_NAME on worker..."
+log_info()  { echo -e "\033[1;34m[INFO]\033[0m $*"; }
+log_warn()  { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 
-# Install the CNI binary
-sudo mkdir -p /opt/cni/bin
-sudo cp "$PLUGIN_BIN" /opt/cni/bin/
-sudo chmod +x /opt/cni/bin/$PLUGIN_NAME
+log_info "Installing $PLUGIN_NAME on worker..."
 
-# Install loopback plugin from K3s
-sudo cp /var/lib/rancher/k3s/data/*/bin/loopback /opt/cni/bin/ || {
-  echo "[WARN] loopback plugin not found in K3s path"
-}
-sudo chmod +x /opt/cni/bin/loopback
+# Install the CNI plugin binary
+sudo install -m 755 -D "$PLUGIN_BIN" /opt/cni/bin/$PLUGIN_NAME
 
-# Create the CNI config with unique subnet
+# Try to install the loopback plugin from K3s
+if ! sudo cp /var/lib/rancher/k3s/data/*/bin/loopback /opt/cni/bin/ 2>/dev/null; then
+  log_warn "Loopback plugin not found in K3s path"
+else
+  sudo chmod +x /opt/cni/bin/loopback
+fi
+
+# Apply CNI configuration
 sudo mkdir -p /etc/cni/net.d
-sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
-{
-  "cniVersion": "0.4.0",
-  "name": "rbati",
-  "type": "rbati-d",     
-  "iface": "eth1",
-  "ipam": {           
-    "dns": {
-      "nameservers": ["8.8.8.8", "1.1.1.1"],
-      "search": ["svc.cluster.local"]
-    }
-  }
-}
-EOF
+sudo cp 10-rbati.conf /etc/cni/net.d/
 
-echo "[INFO] Worker installation complete."
+log_info "Worker installation complete."
+

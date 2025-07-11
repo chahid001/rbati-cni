@@ -1,39 +1,24 @@
 #!/bin/bash
-
-set -e
+set -euo pipefail
 
 PLUGIN_NAME="rbati-d"
-PLUGIN_BIN="/schahid/$PLUGIN_NAME"
+PLUGIN_BIN="./bin/$PLUGIN_NAME"
 
-echo "[INFO] Installing $PLUGIN_NAME..."
+log_info()  { echo -e "\033[1;34m[INFO]\033[0m $*"; }
+log_warn()  { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 
-# Install the CNI binary
-sudo mkdir -p /opt/cni/bin
-sudo cp "$PLUGIN_BIN" /opt/cni/bin/
-sudo chmod +x /opt/cni/bin/$PLUGIN_NAME
+log_info "Installing $PLUGIN_NAME..."
 
-# Install loopback plugin from K3s
-sudo cp /var/lib/rancher/k3s/data/*/bin/loopback /opt/cni/bin/ || echo "[WARN] Loopback plugin not found"
-sudo chmod +x /opt/cni/bin/loopback || true
+sudo install -m 755 -D "$PLUGIN_BIN" /opt/cni/bin/$PLUGIN_NAME
 
-# Create the CNI config
+sudo cp ./bin/loopback /opt/cni/bin/
+sudo chmod +x /opt/cni/bin/loopback
+
+
 sudo mkdir -p /etc/cni/net.d
-sudo tee /etc/cni/net.d/10-rbati.conf > /dev/null <<EOF
-{
-  "cniVersion": "0.4.0",
-  "name": "rbati",
-  "type": "rbati-d",     
-  "iface": "eth1",
-  "ipam": {           
-    "dns": {
-      "nameservers": ["8.8.8.8", "1.1.1.1"],
-      "search": ["svc.cluster.local"]
-    }
-  }
-}
-EOF
+sudo cp 10-rbati.conf /etc/cni/net.d/
 
-echo "[INFO] Creating RBAC for node access..."
+log_info "Applying RBAC permissions for the agent..."
 
 kubectl apply -f - <<EOF
 apiVersion: v1
@@ -68,7 +53,7 @@ subjects:
   namespace: kube-system
 EOF
 
-echo "[INFO] Deploying agent (DaemonSet)..."
+log_info "Deploying rbati-agent DaemonSet..."
 
 kubectl apply -f - <<EOF
 apiVersion: apps/v1
@@ -106,7 +91,7 @@ spec:
         - name: cni-bin
           mountPath: /opt/cni/bin
         - name: rbati-env
-          mountPath: /run/rbati-cni      
+          mountPath: /run/rbati-cni
       volumes:
       - name: cniconf
         hostPath:
@@ -119,3 +104,5 @@ spec:
           path: /run/rbati-cni
           type: DirectoryOrCreate
 EOF
+
+log_info "Control plane setup complete."
