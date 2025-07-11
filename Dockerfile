@@ -4,19 +4,16 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
-RUN go mod download
+COPY . /app
 
-COPY . .
-
-RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /rbati-agent ./cmd/agent/main.go
+RUN go build -o bin/rbati-agent cmd/agent/main.go
 
 FROM alpine:3.20
 
 RUN apk add --no-cache iptables iproute2
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=builder /rbati-agent /usr/local/bin/rbati-agent
+COPY --from=builder /app/bin/rbati-agent /usr/local/bin/rbati-agent
 
 USER appuser
 
