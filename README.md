@@ -96,17 +96,17 @@ The CNI configuration is managed via a file in `/etc/cni/net.d/`, typically name
 ---
 ## 💻 Development Environment
 I did use K3S for my developement environement
-    ```bash
-    curl -sfL https://get.k3s.io | \
-        INSTALL_K3S_EXEC="\
-          --bind-address=<IP of the host> \
-          --node-ip=<IP of the host> \
-          --flannel-backend=none \
-          --disable-network-policy" \
-        K3S_KUBECONFIG_MODE="644" \
-        K3S_NODE_NAME=schahidS \
-    sh -
-    ```
+```bash
+curl -sfL https://get.k3s.io | \
+  INSTALL_K3S_EXEC="\
+    --bind-address=<host IP> \
+    --node-ip=<host IP> \
+    --flannel-backend=none \
+    --disable-network-policy" \
+  K3S_KUBECONFIG_MODE="644" \
+  K3S_NODE_NAME=schahidS \
+  sh -
+```
 
 ## 💻 Development
 Want to contribute or build from source?
