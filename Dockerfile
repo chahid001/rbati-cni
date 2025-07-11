@@ -1,16 +1,26 @@
-FROM golang:1.25rc1-alpine3.22 AS build
+FROM golang:1.22-alpine AS builder
 
-RUN apk add --no-cache bash curl git tar
+RUN apk add --no-cache git
 
-WORKDIR /src
-COPY . /src
+WORKDIR /app
 
-RUN go build -o bin/rbati-agent cmd/agent/main.go
+COPY go.mod go.sum ./
+RUN go mod download
 
-FROM alpine:3.22
+COPY . .
+
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /rbati-agent ./cmd/agent/main.go
+
+FROM alpine:3.20
 
 RUN apk add --no-cache iptables iproute2
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=build /src/bin/rbati-agent /rbati-agent
+COPY --from=builder /rbati-agent /usr/local/bin/rbati-agent
 
-ENTRYPOINT ["/rbati-agent"]
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD pgrep rbati-agent || exit 1
+
+ENTRYPOINT ["rbati-agent"]
