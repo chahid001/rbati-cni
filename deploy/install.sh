@@ -81,7 +81,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: agent
-        image: schahid01/rbati-agent:latest
+        image: ghcr.io/chahid001/rbati-agent:latest
         securityContext:
           privileged: true
         env:

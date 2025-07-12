@@ -1,7 +1,7 @@
 
 # Rbati CNI 🐉
 
-![Build Status](https://github.com/chahid001/rbati-cni/actions/workflows/deploy.yml/badge.svg)
+![Build Status](https://github.com/chahid001/rbati-cni/actions/workflows/release.yml/badge.svg)
 [![Latest Release](https://img.shields.io/github/v/release/your-username/your-cni-repo?display_name=tag&sort=semver)](https://github.com/chahid001/rbati-cni/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
