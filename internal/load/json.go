@@ -3,6 +3,7 @@ package load
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"os"
 	"rbati-cni/internal/logs"
 )
@@ -42,7 +43,7 @@ func RawJSONFromStdin() *CNIConfig {
 func LoadFromFile(path string) *CNIConfig {
 	file, err := os.Open(path)
 	if err != nil {
-		logs.Log.Error("Failed to open config file", "path", path, "ERROR", err)
+		log.Println("[ERROR] Couldn't open the config file !")
 		os.Exit(1)
 	}
 	defer file.Close()

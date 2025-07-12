@@ -40,6 +40,12 @@ func main() {
         os.Exit(1)
     }
 
+	_, err = netlink.LinkByName(types.VXLAN_NAME)
+    if err != nil {
+        utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI VXLAN device not found", 100)
+        os.Exit(1)
+    }
+
 	cmd := envMap["CNI_COMMAND"]
 
 	env_path := filepath.Join(types.ENV_PATH, types.ENV_FILENAME)
