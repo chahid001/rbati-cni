@@ -15,6 +15,9 @@ log_info "Downloading Loopback binary..."
 curl -LO https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz
 tar -xvzf cni-plugins-linux-amd64-v1.4.0.tgz ./loopback
 
+log_info "Cleaning up..."
+sudo rm -rf cni-plugins-linux-amd64-v1.4.0.tgz
+
 sudo cp loopback /opt/cni/bin/
 sudo chmod +x /opt/cni/bin/loopback
 
