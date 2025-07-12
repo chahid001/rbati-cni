@@ -84,6 +84,7 @@ spec:
         image: ghcr.io/chahid001/rbati-agent:latest
         securityContext:
           privileged: true
+          runAsUser: 0
         env:
         - name: NODE_NAME
           valueFrom:
