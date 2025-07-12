@@ -1,6 +1,6 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25rc1-alpine3.22 AS builder
 
-RUN apk add --no-cache git
+RUN apk add --no-cache bash git
 
 WORKDIR /app
 
