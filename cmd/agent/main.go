@@ -123,7 +123,7 @@ func main() {
     }
 
 	metrics.Init(ipamInstance)
-	 log.Printf("[INFO] Metrics endpoint started on :9090")
+	log.Printf("[INFO] Metrics endpoint started on :9090")
 
 	//--------------- Start Informers ------------------
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())

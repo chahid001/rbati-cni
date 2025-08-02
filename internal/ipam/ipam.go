@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"rbati-cni/internal/types"
+	"strconv"
 	"sync"
 
 	bolt "go.etcd.io/bbolt"
@@ -94,7 +95,13 @@ func (i *IPAM) setLease(ip string) error {
 			log.Printf("Couldn't Check Allocation; Error: %v", err)
 			return err
 		}
-		return b.Put([]byte(ip), []byte("1"))
+		if err := b.Put([]byte(ip), []byte("1")); err != nil {
+			return err
+		}
+
+		i.CountAllocatedIPs()
+
+		return nil
 	})
 }
 
@@ -187,33 +194,39 @@ func (i *IPAM) Release(ip string) error {
 		if b == nil {
 			return nil
 		}
-		return b.Delete([]byte(ip))
+		if err := b.Delete([]byte(ip)); err != nil {
+			return err
+		}
+
+		i.CountAllocatedIPs()
+
+		return nil
 	})
 }
 
-func (i *IPAM) CountAllocatedIPs() int {
+func (i *IPAM) CountAllocatedIPs() {
 
-    var count int
-    i.mu.Lock()
+	i.mu.Lock()
+
+	var count int
+
 	err := i.db.View(func(tx *bolt.Tx) error {
-        b := tx.Bucket([]byte(bucketName))
-        if b == nil {
-            return nil
-        }
-        return b.ForEach(func(k, v []byte) error {
-            count++
-            return nil
-        })
-    })
+		b := tx.Bucket([]byte(bucketName))
+		if b != nil {
+			count = b.Stats().KeyN
+		}
 
+		return nil
+	})
 	if err != nil {
-		log.Printf("[ERROR] Could not count IPs: %v", err)
-		return 0
+		log.Printf("[ERROR] Couldn't read from DB: %v", err)
 	}
 
-	log.Printf("[DEBUG] count of ip %v", count)
-	i.mu.Unlock()
-    return count
+	countStr := strconv.Itoa(count)
+	if err := os.WriteFile(types.COUNT_FILEPATH, []byte(countStr), 0644); err != nil {
+		log.Printf("[ERROR] Couldn't write file: %v", err)
+	}
+
 }
 
 

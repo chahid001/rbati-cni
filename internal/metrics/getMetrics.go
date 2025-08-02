@@ -3,8 +3,7 @@ package metrics
 import (
 	"net/http"
 	"rbati-cni/internal/ipam"
-	"time"
-
+	
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -22,13 +21,13 @@ func Init(ipamOBJ *ipam.IPAM) {
 
 	prometheus.MustRegister(AllocatedIPs)
 
-	go func ()  {
-		for {
-			count := ipamOBJ.CountAllocatedIPs()
-			AllocatedIPs.Set(float64(count))
-			time.Sleep(5 * time.Second)
-		}
-	} ()
+	// go func ()  {
+	// 	for {
+	// 		count := ipamOBJ.CountAllocatedIPs()
+	// 		AllocatedIPs.Set(float64(count))
+	// 		time.Sleep(5 * time.Second)
+	// 	}
+	// } ()
 	
 	go func ()  {
 		http.Handle("/metrics", promhttp.Handler())

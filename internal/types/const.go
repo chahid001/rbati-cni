@@ -20,4 +20,5 @@ const (
 
 	MAC_ANNOTATION 		= "cni.rbati.io/vxlan-mac"
 
+	COUNT_FILEPATH		= "/run/rbati-cni/ipamIP"
 )
