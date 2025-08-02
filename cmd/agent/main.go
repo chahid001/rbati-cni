@@ -115,7 +115,7 @@ func main() {
 
 	//--------------- Init Metrics ------------------
 
-	ipam_path := filepath.Join(types.IPAM_FODLER_PATH, types.IPAM_DB_FILENAME)
+	ipam_path := filepath.Join("/run/rbati-cni/ipam", types.IPAM_DB_FILENAME)
 	ipamInstance, err := ipam.NewIPAM(podSubnet, ipam_path)
 
     if err != nil {

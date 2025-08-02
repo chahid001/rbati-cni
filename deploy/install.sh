@@ -94,6 +94,8 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
         volumeMounts:
+        - name: ipamdb
+          mountPath: /run/rbati-cni/ipam
         - name: cniconf
           mountPath: /etc/cni/net.d
         - name: cni-bin
@@ -101,6 +103,9 @@ spec:
         - name: rbati-env
           mountPath: /run/rbati-cni
       volumes:
+      - name: ipamdb
+        hostPath:
+          path: /var/lib/cni/rbati-cni
       - name: cniconf
         hostPath:
           path: /etc/cni/net.d

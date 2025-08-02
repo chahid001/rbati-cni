@@ -192,8 +192,10 @@ func (i *IPAM) Release(ip string) error {
 }
 
 func (i *IPAM) CountAllocatedIPs() int {
+
     var count int
-    err := i.db.View(func(tx *bolt.Tx) error {
+    i.mu.Lock()
+	err := i.db.View(func(tx *bolt.Tx) error {
         b := tx.Bucket([]byte(bucketName))
         if b == nil {
             return nil
@@ -210,6 +212,7 @@ func (i *IPAM) CountAllocatedIPs() int {
 	}
 
 	log.Printf("[DEBUG] count of ip %v", count)
+	i.mu.Unlock()
     return count
 }
 
