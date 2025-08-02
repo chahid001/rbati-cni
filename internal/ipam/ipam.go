@@ -206,8 +206,6 @@ func (i *IPAM) Release(ip string) error {
 
 func (i *IPAM) CountAllocatedIPs() {
 
-	i.mu.Lock()
-
 	var count int
 
 	err := i.db.View(func(tx *bolt.Tx) error {
@@ -226,9 +224,6 @@ func (i *IPAM) CountAllocatedIPs() {
 	if err := os.WriteFile(types.COUNT_FILEPATH, []byte(countStr), 0644); err != nil {
 		log.Printf("[ERROR] Couldn't write file: %v", err)
 	}
-
-	i.mu.Unlock()
-
 }
 
 
