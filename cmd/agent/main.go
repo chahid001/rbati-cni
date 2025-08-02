@@ -3,9 +3,12 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"rbati-cni/internal/controller"
+	"rbati-cni/internal/ipam"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
+	"rbati-cni/internal/metrics"
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/types"
 	"rbati-cni/internal/utils"
@@ -108,6 +111,21 @@ func main() {
 	kube.PatchNode(clientset, kube.GetNodeName(), utils.GetMAC(types.VXLAN_NAME))
 
 	log.Printf("[Agent] Finished the setup with success !")
+
+
+	//--------------- Init Metrics ------------------
+
+	ipam_path := filepath.Join(types.IPAM_FODLER_PATH, types.IPAM_DB_FILENAME)
+	ipamInstance, err := ipam.NewIPAM(podSubnet, ipam_path)
+
+    if err != nil {
+        log.Fatalf("[FATAL] Failed to init IPAM for metrics: %v", err)
+    }
+
+	metrics.Init(ipamInstance)
+	 log.Printf("[INFO] Metrics endpoint started on :9090")
+
+	//--------------- Start Informers ------------------
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
 
 	vxlan, err := netlink.LinkByName(types.VXLAN_NAME)

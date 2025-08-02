@@ -191,6 +191,23 @@ func (i *IPAM) Release(ip string) error {
 	})
 }
 
+func (i *IPAM) CountAllocatedIPs() int {
+    var count int
+    i.db.View(func(tx *bolt.Tx) error {
+        b := tx.Bucket([]byte(bucketName))
+        if b == nil {
+            return nil
+        }
+        b.ForEach(func(k, v []byte) error {
+            count++
+            return nil
+        })
+        return nil
+    })
+    return count
+}
+
+
 func (i *IPAM) Close() {
 	i.db.Close()
 }
