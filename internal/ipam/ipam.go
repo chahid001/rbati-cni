@@ -204,6 +204,7 @@ func (i *IPAM) CountAllocatedIPs() int {
         })
         return nil
     })
+	log.Printf("[DEBUG] count of ip %v", count)
     return count
 }
 

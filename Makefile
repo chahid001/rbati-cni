@@ -57,7 +57,7 @@ dev:
 #     SCP TO REMOTE TARGET
 # ──────────────────────────────
 .PHONY: scp
-scp:
+scp: release
 	@echo "$(CYAN)📦 Copying binaries to remote dev machine...$(RESET)"
 	@scp -i $(SSH_KEY) -r $(RELEASE_DIR) $(REMOTE_USER)@$(REMOTE_HOST):$(REMOTE_PATH)
 	@echo "$(CHECKMARK) Files copied."
