@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"net/http"
-	"rbati-cni/internal/ipam"
 	
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -17,7 +16,7 @@ var (
 
 )
 
-func Init(ipamOBJ *ipam.IPAM) {
+func Init() {
 
 	prometheus.MustRegister(AllocatedIPs)
 

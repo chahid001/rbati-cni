@@ -3,9 +3,7 @@ package main
 import (
 	"log"
 	"os"
-	"path/filepath"
 	"rbati-cni/internal/controller"
-	"rbati-cni/internal/ipam"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
 	"rbati-cni/internal/metrics"
@@ -114,15 +112,7 @@ func main() {
 
 
 	//--------------- Init Metrics ------------------
-
-	ipam_path := filepath.Join("/run/rbati-cni/ipam", types.IPAM_DB_FILENAME)
-	ipamInstance, err := ipam.NewIPAM(podSubnet, ipam_path)
-
-    if err != nil {
-        log.Fatalf("[FATAL] Failed to init IPAM for metrics: %v", err)
-    }
-
-	metrics.Init(ipamInstance)
+	metrics.Init()
 	log.Printf("[INFO] Metrics endpoint started on :9090")
 
 	//--------------- Start Informers ------------------

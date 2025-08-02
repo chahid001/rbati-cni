@@ -227,6 +227,8 @@ func (i *IPAM) CountAllocatedIPs() {
 		log.Printf("[ERROR] Couldn't write file: %v", err)
 	}
 
+	i.mu.Unlock()
+
 }
 
 
