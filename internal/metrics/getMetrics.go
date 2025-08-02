@@ -1,8 +1,13 @@
 package metrics
 
 import (
+	"log"
 	"net/http"
-	
+	"os"
+	"rbati-cni/internal/types"
+	"strconv"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -20,13 +25,20 @@ func Init() {
 
 	prometheus.MustRegister(AllocatedIPs)
 
-	// go func ()  {
-	// 	for {
-	// 		count := ipamOBJ.CountAllocatedIPs()
-	// 		AllocatedIPs.Set(float64(count))
-	// 		time.Sleep(5 * time.Second)
-	// 	}
-	// } ()
+	go func ()  {
+		for {
+			data, err := os.ReadFile(types.COUNT_FILEPATH)
+			if err != nil {
+				log.Printf("[ERROR] Couldn't read from metric file: %v", err)
+			}
+			count, err := strconv.Atoi(string(data))
+			if err != nil {
+				log.Printf("[ERROR] Couldn't convert metric value: %v", err)
+			}
+			AllocatedIPs.Set(float64(count))
+			time.Sleep(5 * time.Second)
+		}
+	} ()
 	
 	go func ()  {
 		http.Handle("/metrics", promhttp.Handler())

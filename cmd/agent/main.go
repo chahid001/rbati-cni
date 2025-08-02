@@ -6,7 +6,7 @@ import (
 	"rbati-cni/internal/controller"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
-	// "rbati-cni/internal/metrics"
+	"rbati-cni/internal/metrics"
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/types"
 	"rbati-cni/internal/utils"
@@ -112,8 +112,8 @@ func main() {
 
 
 	//--------------- Init Metrics ------------------
-	// metrics.Init()
-	// log.Printf("[INFO] Metrics endpoint started on :9090")
+	metrics.Init()
+	log.Printf("[INFO] Metrics endpoint started on :9090")
 
 	//--------------- Start Informers ------------------
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
