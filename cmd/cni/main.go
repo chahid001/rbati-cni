@@ -78,6 +78,8 @@ func main() {
 			utils.CreateErr(configJSON.CNIVersion, "Failed in ADD operation.", err.Error(), 100)
 
 		}
+		ipam.IncrementOperations("add_operations")
+		ipam.WriteSnapshot()
 		os.Exit(0)
 
 	case "DEL":
@@ -85,6 +87,8 @@ func main() {
 
 			utils.CreateErr(configJSON.CNIVersion, "Failed in DEL operation.", err.Error(), 100)
 		}
+		ipam.IncrementOperations("del_operations")
+		ipam.WriteSnapshot()
 		os.Exit(0)
 
 	case "CHECK":

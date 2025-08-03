@@ -53,3 +53,11 @@ type DNSConfig struct {
     Search      []string     `json:"search,omitempty"`
     Options     []string     `json:"options,omitempty"`
 }
+
+//------------- Metrics Types -----------------
+
+type MetricsSnapshot struct {
+    AllocatedIPs   int       `json:"allocated_ips"`
+    AddOperations  int       `json:"add_operations"`
+    DelOperations  int       `json:"del_operations"`
+}

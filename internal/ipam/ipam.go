@@ -1,6 +1,7 @@
 package ipam
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -12,8 +13,8 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-const bucketName = types.BUCKET_NAME
-
+const bucketName 		= types.BUCKET_NAME
+const metricBucketName 	= types.METRIC_BUCKET_NAME
 type IPAM struct {
 	subnet 		*net.IPNet
 	db     		*bolt.DB
@@ -199,12 +200,11 @@ func (i *IPAM) Release(ip string) error {
 		}
 
 		i.CountAllocatedIPs()
-
 		return nil
 	})
 }
 
-func (i *IPAM) CountAllocatedIPs() {
+func (i *IPAM) CountAllocatedIPs() int {
 
 	var count int
 
@@ -219,13 +219,79 @@ func (i *IPAM) CountAllocatedIPs() {
 	if err != nil {
 		log.Printf("[ERROR] Couldn't read from DB: %v", err)
 	}
-
-	countStr := strconv.Itoa(count)
-	if err := os.WriteFile(types.COUNT_FILEPATH, []byte(countStr), 0644); err != nil {
-		log.Printf("[ERROR] Couldn't write file: %v", err)
-	}
+	
+	return count
 }
 
+func (i *IPAM) IncrementOperations(operation string) error {
+
+	return i.db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(metricBucketName))
+		if err != nil {
+			log.Printf("[ERROR] Couldn't create bucket: %v", err)
+			return err
+		}
+
+		current := 0
+		value := b.Get([]byte(operation))
+
+		if value != nil {
+			current, err := strconv.Atoi(string(value))
+			if err != nil {
+				log.Printf("[ERROR] Couldn't convert value: %v", err)
+				return err
+			}
+			current++
+		}
+
+		return b.Put([]byte(operation), []byte(strconv.Itoa(current)))
+	})
+}
+
+func (i *IPAM) getOperationMetric(operation string) int {
+
+	var count int 
+
+	_ = i.db.View(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte(metricBucketName))
+		if b == nil {
+			log.Printf("[ERROR] Couldn't view bucket")
+			return nil
+		}
+
+		value := b.Get([]byte(operation))
+
+		if value != nil {
+			count, _= strconv.Atoi(string(value))
+		}
+
+		return nil
+	})
+
+	return count
+}
+
+func (i *IPAM) WriteSnapshot() {
+
+	snapshot := map[string]int{
+
+		"add_operations": i.getOperationMetric("add_operations"),
+		"del_operations": i.getOperationMetric("del_operations"),
+		"sum_allocated_ips": i.CountAllocatedIPs(),
+
+	}
+
+	data, err := json.Marshal(snapshot)
+	if err != nil {
+		log.Printf("[ERROR] Couldn't marshall data metrics: %v", err)
+	}
+
+	if err := os.WriteFile(types.METRICS_FILEPATH, data, 0644); err != nil {
+		log.Printf("[ERROR] Couldn't write data metrics: %v", err)
+	}
+
+}
 
 func (i *IPAM) Close() {
 	i.db.Close()

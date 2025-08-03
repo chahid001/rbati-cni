@@ -193,11 +193,7 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 		c.vxlanMacsMutex.Unlock()
 		delete(c.processedPods, pod.Name)
 	}
-
-	
-
 }
-
 
 /////////////////////////////////////
 /////			Node
