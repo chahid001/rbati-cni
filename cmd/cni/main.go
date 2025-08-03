@@ -75,19 +75,22 @@ func main() {
 	case "ADD":
 		if err := discovery.Add(envMap, configJSON, bridge, ipam); err != nil {
 
+			ipam.IncrementOperation("add_operations_failed")
+			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in ADD operation.", err.Error(), 100)
 
 		}
-		ipam.IncrementOperation("add_operations")
+		ipam.IncrementOperation("add_operations_success")
 		ipam.WriteSnapshot()
 		os.Exit(0)
 
 	case "DEL":
 		if err := discovery.DEL(envMap, configJSON, ipam); err != nil {
-
+			ipam.IncrementOperation("del_operations_failed")
+			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in DEL operation.", err.Error(), 100)
 		}
-		ipam.IncrementOperation("del_operations")
+		ipam.IncrementOperation("del_operations_success")
 		ipam.WriteSnapshot()
 		os.Exit(0)
 

@@ -19,12 +19,27 @@ var (
 		Help: "Number of current IP allocated by IPAM in BOLTDB.",
 	})
 
-	AddOperations = prometheus.NewGauge(prometheus.GaugeOpts{
+	TotalIPs = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-ipam_total_ips",
+		Help: "Number of total IP available by Subnet.",
+	})
+
+	AddOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-add_operations",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
-	DelOperations = prometheus.NewGauge(prometheus.GaugeOpts{
+	DelOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-del_operations",
+		Help: "Number of DEL Operations performed by rbati CNI",
+	})
+
+	AddOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-add_operations",
+		Help: "Number of ADD Operations performed by rbati CNI",
+	})
+
+	DelOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-del_operations",
 		Help: "Number of DEL Operations performed by rbati CNI",
 	})
@@ -32,7 +47,12 @@ var (
 
 func Init(port string) {
 
-	prometheus.MustRegister(AllocatedIPs, AddOperations, DelOperations)
+	prometheus.MustRegister(AllocatedIPs,
+		TotalIPs,
+		AddOperationsSuccess, 
+		DelOperationsSuccess,
+		AddOperationsFailed,
+		DelOperationsFailed)
 
 	go func ()  {
 		for {
@@ -51,8 +71,11 @@ func Init(port string) {
 			}
 
 			AllocatedIPs.Set(float64(metrics.AllocatedIPs))
-			AddOperations.Set(float64(metrics.AddOperations))
-			DelOperations.Set(float64(metrics.DelOperations))
+			TotalIPs.Set(float64(metrics.TotalIPs))
+			AddOperationsSuccess.Set(float64(metrics.AddOperationsSuccess))
+			DelOperationsSuccess.Set(float64(metrics.DelOperationsSuccess))
+			AddOperationsFailed.Set(float64(metrics.AddOperationsFailed))
+			DelOperationsFailed.Set(float64(metrics.DelOperationsFailed))
 			time.Sleep(5 * time.Second)
 		}
 	} ()
@@ -65,6 +88,5 @@ func Init(port string) {
 			log.Printf("[ERROR] Couldn't Start metric server: %v", err)
 		}
 	}()
-	
 
 }

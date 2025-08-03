@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"rbati-cni/internal/logs"
 	"rbati-cni/internal/types"
 	"strconv"
 	"sync"
@@ -23,7 +22,8 @@ type IPAM struct {
 	mu     		sync.Mutex
 	networkIP	net.IP
     gatewayIP   net.IP 
-    broadcastIP net.IP 
+    broadcastIP net.IP
+	totalIP		int
 }
 
 func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
@@ -54,6 +54,12 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
     copy(_gatewayIP, _networkIP)
     incrementIP(_gatewayIP)
 
+	// Calculate Total IPs space
+	ones, bits := _subnet.Mask.Size()
+	total := 1 << (bits - ones)
+	total = total - 3
+
+
 
 	return &IPAM{
 		subnet: _subnet,
@@ -62,6 +68,7 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 		networkIP: _networkIP,
 		gatewayIP: _gatewayIP,
 		broadcastIP: _broadcastIP,
+		totalIP: total,
 	}, nil
 }
 
@@ -238,7 +245,6 @@ func (i *IPAM) IncrementOperation(operation string) error {
 
 		if value != nil {
 			n, err := strconv.Atoi(string(value))
-			logs.Log.Warn("here is n", n)
 			if err != nil {
 				log.Printf("[ERROR] Couldn't convert value: %v", err)
 				return err
@@ -280,9 +286,12 @@ func (i *IPAM) WriteSnapshot() {
 
 	snapshot := map[string]int{
 
-		"add_operations": i.getOperationMetric("add_operations"),
-		"del_operations": i.getOperationMetric("del_operations"),
-		"allocated_ips": i.CountAllocatedIPs(),
+		"add_operations_success": 	i.getOperationMetric("add_operations_success"),
+		"del_operations_success": 	i.getOperationMetric("del_operations_success"),
+		"add_operations_failed": 	i.getOperationMetric("add_operations_failed"),
+		"del_operations_failed": 	i.getOperationMetric("del_operations_failed"),
+		"allocated_ips": 			i.CountAllocatedIPs(),
+		"total_ips": 				i.totalIP,
 
 	}
 

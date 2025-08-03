@@ -57,7 +57,14 @@ type DNSConfig struct {
 //------------- Metrics Types -----------------
 
 type MetricsSnapshot struct {
-    AllocatedIPs   int       `json:"allocated_ips"`
-    AddOperations  int       `json:"add_operations"`
-    DelOperations  int       `json:"del_operations"`
+    
+    AllocatedIPs            int       `json:"allocated_ips"`
+    TotalIPs                int       `json:"total_ips"`
+    
+    AddOperationsSuccess    int       `json:"add_operations_success"`
+    AddOperationsFailed     int       `json:"add_operations_failed"`
+    
+    DelOperationsSuccess    int       `json:"del_operations_success"`
+    DelOperationsFailed     int       `json:"del_operations_failed"`
+
 }

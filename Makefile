@@ -17,7 +17,7 @@ RELEASE_NAME  := $(APP_NAME)-$(VERSION)
 #        DEV PURPOSES
 # ──────────────────────────────
 REMOTE_USER   := schahid
-REMOTE_HOST   := 74.235.21.45
+REMOTE_HOST   := 172.172.181.31
 REMOTE_PATH   := /home/schahid/workspace/config
 SSH_KEY       := ~/.ssh/id_rsa
 
