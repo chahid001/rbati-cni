@@ -326,16 +326,32 @@ func (i *IPAM) getAvgOperationMetric(operationAvg string) float64 {
 
 func (i *IPAM) WriteSnapshot() {
 
+	addCount := i.getOperationMetric("add_operations_success")
+	delCount := i.getOperationMetric("del_operations_success")
+
+	addTotal := i.getAvgOperationMetric("avg_add_duration_milliseconds") 
+	delTotal := i.getAvgOperationMetric("avg_del_duration_milliseconds")
+
+	avgAdd := 0.0
+    if addCount > 0 {
+        avgAdd = addTotal / float64(addCount)
+    }
+
+    avgDel := 0.0
+    if delCount > 0 {
+        avgDel = delTotal / float64(delCount)
+    }
+
 	snapshot := map[string]any{
 
-		"add_operations_success": i.getOperationMetric("add_operations_success"),
-		"del_operations_success": i.getOperationMetric("del_operations_success"),
+		"add_operations_success": addCount,
+		"del_operations_success": delCount,
 
 		"add_operations_failed": i.getOperationMetric("add_operations_failed"),
 		"del_operations_failed": i.getOperationMetric("del_operations_failed"),
 
-		"avg_add_duration_milliseconds": i.getAvgOperationMetric("avg_add_duration_milliseconds"),
-		"avg_del_duration_milliseconds": i.getAvgOperationMetric("avg_del_duration_milliseconds"),
+		"avg_add_duration_milliseconds": avgAdd,
+		"avg_del_duration_milliseconds": avgDel,
 
 		"allocated_ips": i.CountAllocatedIPs(),
 		"total_ips":     i.totalIP,
