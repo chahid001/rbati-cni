@@ -92,7 +92,7 @@ func main() {
 			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in DEL operation.", err.Error(), 100)
 		}
-		duration := time.Since(start).Seconds()
+		duration := time.Since(start).Milliseconds()
 		ipam.IncrementOperation("del_operations_success", "avg_del_duration_milliseconds", int(duration))
 		ipam.WriteSnapshot()
 		os.Exit(0)
