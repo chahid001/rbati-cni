@@ -32,7 +32,7 @@ var (
 
 func Init() {
 
-	prometheus.MustRegister(AllocatedIPs)
+	prometheus.MustRegister(AllocatedIPs, AddOperations, DelOperations)
 
 	go func ()  {
 		for {

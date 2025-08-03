@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"rbati-cni/internal/logs"
 	"rbati-cni/internal/types"
 	"strconv"
 	"sync"
@@ -223,7 +224,7 @@ func (i *IPAM) CountAllocatedIPs() int {
 	return count
 }
 
-func (i *IPAM) IncrementOperations(operation string) error {
+func (i *IPAM) IncrementOperation(operation string) error {
 
 	return i.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(metricBucketName))
@@ -236,13 +237,16 @@ func (i *IPAM) IncrementOperations(operation string) error {
 		value := b.Get([]byte(operation))
 
 		if value != nil {
-			current, err := strconv.Atoi(string(value))
+			n, err := strconv.Atoi(string(value))
+			logs.Log.Warn("here is n", n)
 			if err != nil {
 				log.Printf("[ERROR] Couldn't convert value: %v", err)
 				return err
 			}
-			current++
+			current = n
 		}
+
+		current++
 
 		return b.Put([]byte(operation), []byte(strconv.Itoa(current)))
 	})
