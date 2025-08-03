@@ -57,7 +57,7 @@ func NewIPAM(Subnet, _dbPath string) (*IPAM, error) {
 	// Calculate Total IPs space
 	ones, bits := _subnet.Mask.Size()
 	total := 1 << (bits - ones)
-	total = total - 3
+	total = total - 4
 
 
 

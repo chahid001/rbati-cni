@@ -25,22 +25,22 @@ var (
 	})
 
 	AddOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "rbati_cni-add_operations",
+		Name: "rbati_cni-add_operations_success",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
 	DelOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "rbati_cni-del_operations",
+		Name: "rbati_cni-del_operations_success",
 		Help: "Number of DEL Operations performed by rbati CNI",
 	})
 
 	AddOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "rbati_cni-add_operations",
+		Name: "rbati_cni-add_operations_failed",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
 	DelOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "rbati_cni-del_operations",
+		Name: "rbati_cni-del_operations_failed",
 		Help: "Number of DEL Operations performed by rbati CNI",
 	})
 )
