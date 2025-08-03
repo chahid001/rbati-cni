@@ -60,7 +60,7 @@ func Init(port string) {
 	
 	go func ()  {
 		http.Handle("/metrics", promhttp.Handler())
-		portStr := fmt.Sprint(":%s", port)
+		portStr := ":" + port
 		
 		if err := http.ListenAndServe(portStr, nil); err != nil {
 			log.Printf("[ERROR] Couldn't Start metric server: %v", err)
