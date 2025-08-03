@@ -282,7 +282,7 @@ func (i *IPAM) WriteSnapshot() {
 
 		"add_operations": i.getOperationMetric("add_operations"),
 		"del_operations": i.getOperationMetric("del_operations"),
-		"sum_allocated_ips": i.CountAllocatedIPs(),
+		"allocated_ips": i.CountAllocatedIPs(),
 
 	}
 

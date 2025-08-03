@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -30,7 +31,7 @@ var (
 	})
 )
 
-func Init() {
+func Init(port string) {
 
 	prometheus.MustRegister(AllocatedIPs, AddOperations, DelOperations)
 
@@ -39,11 +40,15 @@ func Init() {
 			data, err := os.ReadFile(types.METRICS_FILEPATH)
 			if err != nil {
 				log.Printf("[ERROR] Couldn't read from metric file: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
 			}
 
 			var metrics types.MetricsSnapshot
 			if err := json.Unmarshal(data, &metrics); err != nil {
-				log.Printf("[ERROR] Couldn't unmarshall metrics: %v", err)
+				log.Printf("[ERROR] Couldn't unmarshal metrics: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
 			}
 
 			AllocatedIPs.Set(float64(metrics.AllocatedIPs))
@@ -55,7 +60,11 @@ func Init() {
 	
 	go func ()  {
 		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(":9090", nil)
+		portStr := fmt.Sprint(":%s", port)
+		
+		if err := http.ListenAndServe(portStr, nil); err != nil {
+			log.Printf("[ERROR] Couldn't Start metric server: %v", err)
+		}
 	}()
 	
 

@@ -112,8 +112,8 @@ func main() {
 
 
 	//--------------- Init Metrics ------------------
-	metrics.Init()
-	log.Printf("[INFO] Metrics endpoint started on :9090")
+	metrics.Init(configJSON.MetricsPort)
+	log.Printf("[INFO] Metrics endpoint started on :%s", configJSON.MetricsPort)
 
 	//--------------- Start Informers ------------------
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
