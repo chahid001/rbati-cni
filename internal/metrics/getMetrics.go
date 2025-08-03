@@ -13,44 +13,43 @@ import (
 )
 
 var (
-
-	AllocatedIPs 			= prometheus.NewGauge(prometheus.GaugeOpts{
+	AllocatedIPs = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-ipam_allocated_ips",
 		Help: "Number of current IP allocated by IPAM in BOLTDB.",
 	})
 
-	TotalIPs 				= prometheus.NewGauge(prometheus.GaugeOpts{
+	TotalIPs = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-ipam_total_ips",
 		Help: "Number of total IP available by Subnet.",
 	})
 
-	AddOperationsSuccess 	= prometheus.NewGauge(prometheus.GaugeOpts{
+	AddOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-add_operations_success",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
-	DelOperationsSuccess 	= prometheus.NewGauge(prometheus.GaugeOpts{
+	DelOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-del_operations_success",
 		Help: "Number of DEL Operations performed by rbati CNI",
 	})
 
-	AddOperationsFailed 	= prometheus.NewGauge(prometheus.GaugeOpts{
+	AddOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-add_operations_failed",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
-	DelOperationsFailed 	= prometheus.NewGauge(prometheus.GaugeOpts{
+	DelOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-del_operations_failed",
 		Help: "Number of DEL Operations performed by rbati CNI",
 	})
 
-	AvgAddDuration 			= prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "rbati_cni-avg_add_duration_seconds",
+	AvgAddDuration = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-avg_add_duration_milliseconds",
 		Help: "Average duration of ADD opertion in seconds",
 	})
 
-	AvgDelDuration 			= prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "rbati_cni-avg_del_duration_seconds",
+	AvgDelDuration = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-avg_del_duration_milliseconds",
 		Help: "Average duration of DEL opertion in seconds",
 	})
 )
@@ -59,14 +58,14 @@ func Init(port string) {
 
 	prometheus.MustRegister(AllocatedIPs,
 		TotalIPs,
-		AddOperationsSuccess, 
+		AddOperationsSuccess,
 		DelOperationsSuccess,
 		AddOperationsFailed,
 		DelOperationsFailed,
 		AvgAddDuration,
 		AvgDelDuration)
 
-	go func ()  {
+	go func() {
 		for {
 			data, err := os.ReadFile(types.METRICS_FILEPATH)
 			if err != nil {
@@ -87,21 +86,21 @@ func Init(port string) {
 
 			AddOperationsSuccess.Set(float64(metrics.AddOperationsSuccess))
 			DelOperationsSuccess.Set(float64(metrics.DelOperationsSuccess))
-			
+
 			AddOperationsFailed.Set(float64(metrics.AddOperationsFailed))
 			DelOperationsFailed.Set(float64(metrics.DelOperationsFailed))
-			
-			AvgAddDuration.Set(metrics.AvgAddDuration)
-			AvgDelDuration.Set(metrics.AvgDelDuration)
-			
+
+			AvgAddDuration.Set(float64(metrics.AvgAddDuration))
+			AvgDelDuration.Set(float64(metrics.AvgDelDuration))
+
 			time.Sleep(5 * time.Second)
 		}
-	} ()
-	
-	go func ()  {
+	}()
+
+	go func() {
 		http.Handle("/metrics", promhttp.Handler())
 		portStr := ":" + port
-		
+
 		if err := http.ListenAndServe(portStr, nil); err != nil {
 			log.Printf("[ERROR] Couldn't Start metric server: %v", err)
 		}

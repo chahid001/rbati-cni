@@ -20,7 +20,6 @@ var (
 	configJSON *load.CNIConfig
 )
 
-
 func init() {
 	logs.Init()
 	envMap = load.ENV()
@@ -36,16 +35,16 @@ func main() {
 	}
 
 	_, err := netlink.LinkByName(bridge)
-    if err != nil {
-        utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI bridge device not found", 100)
-        os.Exit(1)
-    }
+	if err != nil {
+		utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI bridge device not found", 100)
+		os.Exit(1)
+	}
 
 	_, err = netlink.LinkByName(types.VXLAN_NAME)
-    if err != nil {
-        utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI VXLAN device not found", 100)
-        os.Exit(1)
-    }
+	if err != nil {
+		utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI VXLAN device not found", 100)
+		os.Exit(1)
+	}
 
 	cmd := envMap["CNI_COMMAND"]
 
@@ -82,8 +81,8 @@ func main() {
 			utils.CreateErr(configJSON.CNIVersion, "Failed in ADD operation.", err.Error(), 100)
 
 		}
-		duration := time.Since(start).Seconds()
-		ipam.IncrementOperation("add_operations_success", "avg_add_duration_seconds", duration)
+		duration := time.Since(start).Milliseconds()
+		ipam.IncrementOperation("add_operations_success", "avg_add_duration_milliseconds", int(duration))
 		ipam.WriteSnapshot()
 		os.Exit(0)
 
@@ -94,7 +93,7 @@ func main() {
 			utils.CreateErr(configJSON.CNIVersion, "Failed in DEL operation.", err.Error(), 100)
 		}
 		duration := time.Since(start).Seconds()
-		ipam.IncrementOperation("del_operations_success", "avg_del_duration_seconds", duration)
+		ipam.IncrementOperation("del_operations_success", "avg_del_duration_milliseconds", int(duration))
 		ipam.WriteSnapshot()
 		os.Exit(0)
 
