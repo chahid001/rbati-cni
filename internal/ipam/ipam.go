@@ -300,9 +300,9 @@ func (i *IPAM) getOperationMetric(operation string) int {
 	return count
 }
 
-func (i *IPAM) getAvgOperationMetric(operationAvg string) float64 {
+func (i *IPAM) getAvgOperationMetric(operationAvg string) int {
 
-	var total float64
+	var total int
 
 	_ = i.db.View(func(tx *bolt.Tx) error {
 
@@ -315,7 +315,7 @@ func (i *IPAM) getAvgOperationMetric(operationAvg string) float64 {
 		value := b.Get([]byte(operationAvg))
 
 		if value != nil {
-			total, _ = strconv.ParseFloat(string(value), 64)
+			total, _ = strconv.Atoi(string(value))
 		}
 
 		return nil
@@ -332,14 +332,14 @@ func (i *IPAM) WriteSnapshot() {
 	addTotal := i.getAvgOperationMetric("avg_add_duration_milliseconds") 
 	delTotal := i.getAvgOperationMetric("avg_del_duration_milliseconds")
 
-	avgAdd := 0.0
+	avgAdd := 0
     if addCount > 0 {
-        avgAdd = addTotal / float64(addCount)
+        avgAdd = addTotal / addCount
     }
 
-    avgDel := 0.0
+    avgDel := 0
     if delCount > 0 {
-        avgDel = delTotal / float64(delCount)
+        avgDel = delTotal / delCount
     }
 
 	snapshot := map[string]any{
