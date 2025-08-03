@@ -231,13 +231,32 @@ func (i *IPAM) CountAllocatedIPs() int {
 	return count
 }
 
-func (i *IPAM) IncrementOperation(operation string) error {
+// true for Success, false for Failed
+func (i *IPAM) IncrementOperation(operation string, operationAvg string, duration float64) error {
 
 	return i.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(metricBucketName))
 		if err != nil {
 			log.Printf("[ERROR] Couldn't create bucket: %v", err)
 			return err
+		}
+
+		if duration != -1 {
+
+			total := 0.0
+			
+			if valueTime := b.Get([]byte(operationAvg)); valueTime != nil {
+				total, err = strconv.ParseFloat(string(valueTime), 64)
+				if err != nil {
+					log.Printf("[ERROR] Couldn't convert value: %v", err)
+					return err
+				}
+			}
+			total += duration
+			
+			if err := b.Put([]byte(operationAvg), []byte(fmt.Sprintf("%f", total))); err != nil {
+				return err
+			}
 		}
 
 		current := 0
@@ -282,14 +301,43 @@ func (i *IPAM) getOperationMetric(operation string) int {
 	return count
 }
 
+func (i *IPAM) getAvgOperationMetric(operationAvg string) float64 {
+
+	var total float64
+
+	_ = i.db.View(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte(metricBucketName))
+		if b == nil {
+			log.Printf("[ERROR] Couldn't view bucket")
+			return nil
+		}
+
+		value := b.Get([]byte(operationAvg))
+
+		if value != nil {
+			total, _= strconv.ParseFloat(string(value), 64)
+		}
+
+		return nil
+	})
+
+	return total
+}
+
 func (i *IPAM) WriteSnapshot() {
 
-	snapshot := map[string]int{
+	snapshot := map[string]any{
 
 		"add_operations_success": 	i.getOperationMetric("add_operations_success"),
 		"del_operations_success": 	i.getOperationMetric("del_operations_success"),
+		
 		"add_operations_failed": 	i.getOperationMetric("add_operations_failed"),
 		"del_operations_failed": 	i.getOperationMetric("del_operations_failed"),
+		
+		"avg_add_duration_seconds": i.getAvgOperationMetric("avg_add_duration_seconds"),
+		"avg_del_duration_seconds": i.getAvgOperationMetric("avg_del_duration_seconds"),
+
 		"allocated_ips": 			i.CountAllocatedIPs(),
 		"total_ips": 				i.totalIP,
 

@@ -10,6 +10,7 @@ import (
 	"rbati-cni/internal/types"
 	"rbati-cni/internal/utils"
 	"strings"
+	"time"
 
 	"github.com/vishvananda/netlink"
 )
@@ -70,27 +71,30 @@ func main() {
 		}
 	}
 
+	start := time.Now()
 	switch cmd {
 
 	case "ADD":
 		if err := discovery.Add(envMap, configJSON, bridge, ipam); err != nil {
 
-			ipam.IncrementOperation("add_operations_failed")
+			ipam.IncrementOperation("add_operations_failed", "", -1)
 			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in ADD operation.", err.Error(), 100)
 
 		}
-		ipam.IncrementOperation("add_operations_success")
+		duration := time.Since(start).Seconds()
+		ipam.IncrementOperation("add_operations_success", "avg_add_duration_seconds", duration)
 		ipam.WriteSnapshot()
 		os.Exit(0)
 
 	case "DEL":
 		if err := discovery.DEL(envMap, configJSON, ipam); err != nil {
-			ipam.IncrementOperation("del_operations_failed")
+			ipam.IncrementOperation("del_operations_failed", "", -1)
 			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in DEL operation.", err.Error(), 100)
 		}
-		ipam.IncrementOperation("del_operations_success")
+		duration := time.Since(start).Seconds()
+		ipam.IncrementOperation("del_operations_success", "avg_del_duration_seconds", duration)
 		ipam.WriteSnapshot()
 		os.Exit(0)
 

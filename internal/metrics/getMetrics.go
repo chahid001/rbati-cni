@@ -14,34 +14,44 @@ import (
 
 var (
 
-	AllocatedIPs = prometheus.NewGauge(prometheus.GaugeOpts{
+	AllocatedIPs 			= prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-ipam_allocated_ips",
 		Help: "Number of current IP allocated by IPAM in BOLTDB.",
 	})
 
-	TotalIPs = prometheus.NewGauge(prometheus.GaugeOpts{
+	TotalIPs 				= prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-ipam_total_ips",
 		Help: "Number of total IP available by Subnet.",
 	})
 
-	AddOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
+	AddOperationsSuccess 	= prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-add_operations_success",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
-	DelOperationsSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
+	DelOperationsSuccess 	= prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-del_operations_success",
 		Help: "Number of DEL Operations performed by rbati CNI",
 	})
 
-	AddOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
+	AddOperationsFailed 	= prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-add_operations_failed",
 		Help: "Number of ADD Operations performed by rbati CNI",
 	})
 
-	DelOperationsFailed = prometheus.NewGauge(prometheus.GaugeOpts{
+	DelOperationsFailed 	= prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "rbati_cni-del_operations_failed",
 		Help: "Number of DEL Operations performed by rbati CNI",
+	})
+
+	AvgAddDuration 			= prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-avg_add_duration_seconds",
+		Help: "Average duration of ADD opertion in seconds",
+	})
+
+	AvgDelDuration 			= prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "rbati_cni-avg_del_duration_seconds",
+		Help: "Average duration of DEL opertion in seconds",
 	})
 )
 
@@ -52,7 +62,9 @@ func Init(port string) {
 		AddOperationsSuccess, 
 		DelOperationsSuccess,
 		AddOperationsFailed,
-		DelOperationsFailed)
+		DelOperationsFailed,
+		AvgAddDuration,
+		AvgDelDuration)
 
 	go func ()  {
 		for {
@@ -72,10 +84,16 @@ func Init(port string) {
 
 			AllocatedIPs.Set(float64(metrics.AllocatedIPs))
 			TotalIPs.Set(float64(metrics.TotalIPs))
+
 			AddOperationsSuccess.Set(float64(metrics.AddOperationsSuccess))
 			DelOperationsSuccess.Set(float64(metrics.DelOperationsSuccess))
+			
 			AddOperationsFailed.Set(float64(metrics.AddOperationsFailed))
 			DelOperationsFailed.Set(float64(metrics.DelOperationsFailed))
+			
+			AvgAddDuration.Set(metrics.AvgAddDuration)
+			AvgDelDuration.Set(metrics.AvgDelDuration)
+			
 			time.Sleep(5 * time.Second)
 		}
 	} ()

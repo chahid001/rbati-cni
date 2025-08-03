@@ -67,4 +67,6 @@ type MetricsSnapshot struct {
     DelOperationsSuccess    int       `json:"del_operations_success"`
     DelOperationsFailed     int       `json:"del_operations_failed"`
 
+    AvgAddDuration          float64   `json:"avg_add_duration_seconds"`
+    AvgDelDuration          float64   `json:"avg_del_duration_seconds"`
 }
