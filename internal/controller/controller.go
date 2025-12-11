@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"log"
 	"net"
 	"rbati-cni/internal/kube"
@@ -12,20 +13,27 @@ import (
 
 	"github.com/vishvananda/netlink"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
-
+// Overlay Controle Plane
 
 type Controller struct {
 	
 	clientSet 		*kubernetes.Clientset
 	nodeName		string
 	Vxlan 			netlink.Link
+
 	processedNodes 	map[string]bool
 	processedPods 	map[string]bool
+	
+	policies 		map[string]*networkingv1.NetworkPolicy
+	policiesMutex	sync.RWMutex
+	
 	vxlanMacs      	map[string]net.HardwareAddr // Race condition
 	vxlanMacsMutex 	sync.RWMutex
 }
@@ -34,11 +42,13 @@ type Controller struct {
 func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan netlink.Link) *Controller {
 	
 	return &Controller{
+		
 		clientSet: _clientSet,
 		nodeName: _nodeName,
 		Vxlan: _Vxlan,
 		processedNodes: make(map[string]bool),
 		processedPods: make(map[string]bool),
+		policies: make(map[string]*networkingv1.NetworkPolicy),
 		vxlanMacs: make(map[string]net.HardwareAddr),
 	}
 
@@ -46,10 +56,23 @@ func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan ne
 
 func (c *Controller) Run(stopCh chan struct{}) {
 
+	// Informers are used to watch for changes in the cluster
+	log.Println("[INFO] Starting Informers...")
+
+	// Create a shared informer factory to manage informers
+	// The factory will create informers for the resources we want to watch
+	// The second parameter is the resync period, which is how often the informer will re-sync with the API server
+	// In this case, we set it to 30 seconds
+	// This means that the informer will re-sync with the API server every 30 seconds
+	// This is useful for ensuring that the informer has the latest state of the cluster
+	// and can detect changes that may have occurred while it was not running
+	log.Println("[INFO] Creating Shared Informer Factory...")
+
 	factory := informers.NewSharedInformerFactory(c.clientSet, 30*time.Second)
 
 	nodeInformer 	:= factory.Core().V1().Nodes()
 	podInformer 	:= factory.Core().V1().Pods()
+	policyInformer  := factory.Networking().V1().NetworkPolicies()
 
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: 	c.onNodeAddfunc,
@@ -61,10 +84,21 @@ func (c *Controller) Run(stopCh chan struct{}) {
 		UpdateFunc: c.onPodUpdate,
 		DeleteFunc: c.onPodDelete,
 	})
+	policyInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: 	c.onPolicyAdd,
+		UpdateFunc: c.onPolicyUpdate,
+		DeleteFunc: c.onPolicyDelete,	
+	})
 
 	factory.Start(stopCh)
     log.Println("[INFO] Waiting for informer caches to sync...")
-    if !cache.WaitForCacheSync(stopCh, nodeInformer.Informer().HasSynced) {
+    
+	// Wait for the caches to sync before proceeding
+	// This is important to ensure that the controller has the latest state of the cluster
+	// before it starts processing events
+	// If the caches are not synced, the controller may miss events or process stale data
+	// The WaitForCacheSync function will block until all caches are synced or the stop channel is closed
+	if !cache.WaitForCacheSync(stopCh, nodeInformer.Informer().HasSynced, policyInformer.Informer().HasSynced) {
         log.Fatalln("failed to sync caches")
     }
     log.Println("[INFO] Informer caches synced. Controller is running.")
@@ -195,6 +229,37 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 	}
 }
 
+func (c *Controller) reconcilePolicy(policy *networkingv1.NetworkPolicy) {
+    ns := policy.Namespace
+    // Convert PodSelector to labels.Selector
+    sel, err := metav1.LabelSelectorAsSelector(&policy.Spec.PodSelector)
+    if err != nil {
+        log.Printf("[ERROR] invalid podSelector in policy %s/%s: %v", ns, policy.Name, err)
+        return
+    }
+
+    // List pods in same namespace that match
+    podList, err := c.clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{
+        LabelSelector: sel.String(),
+    })
+    if err != nil {
+        log.Printf("[ERROR] failed to list pods for policy %s/%s: %v", ns, policy.Name, err)
+        return
+    }
+
+    var podIPs []string
+    for _, p := range podList.Items {
+        if p.Status.PodIP != "" {
+            // Optionally check that pod is on this node, or handle cross-node policies
+            podIPs = append(podIPs, p.Status.PodIP)
+        }
+    }
+
+    log.Printf("[INFO] Policy %s/%s selects pods: %v", ns, policy.Name, podIPs)
+
+    // TODO: call EnforceNetworkPolicy(policy, podIPs) — implement enforcement later
+}
+
 /////////////////////////////////////
 /////			Node
 ////////////////////////////////////
@@ -286,4 +351,43 @@ func isNodeReady(node *v1.Node) bool {
 
 }
 
+////////////////////////////////////////
+/////			Network Policy
+////////////////////////////////////
+
+func (c *Controller) onPolicyAdd(obj interface{}) {
+    policy := obj.(*networkingv1.NetworkPolicy)
+    key := policy.Namespace + "/" + policy.Name
+
+    c.policiesMutex.Lock()
+    c.policies[key] = policy.DeepCopy()
+    c.policiesMutex.Unlock()
+
+    log.Printf("[INFO] NetworkPolicy added: %s", key)
+    go c.reconcilePolicy(policy)
+}
+
+func (c *Controller) onPolicyUpdate(oldObj, newObj interface{}) {
+    policy := newObj.(*networkingv1.NetworkPolicy)
+    key := policy.Namespace + "/" + policy.Name
+
+    c.policiesMutex.Lock()
+    c.policies[key] = policy.DeepCopy()
+    c.policiesMutex.Unlock()
+
+    log.Printf("[INFO] NetworkPolicy updated: %s", key)
+    go c.reconcilePolicy(policy)
+}
+
+func (c *Controller) onPolicyDelete(obj interface{}) {
+    policy := obj.(*networkingv1.NetworkPolicy)
+    key := policy.Namespace + "/" + policy.Name
+
+    c.policiesMutex.Lock()
+    delete(c.policies, key)
+    c.policiesMutex.Unlock()
+
+    log.Printf("[INFO] NetworkPolicy deleted: %s", key)
+    // Optionally run cleanup enforcement
+}
 
