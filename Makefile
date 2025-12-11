@@ -9,17 +9,18 @@ BRANCH        := $(shell git rev-parse --abbrev-ref HEAD)
 COMMIT        := $(shell git rev-parse --short HEAD)
 TAG           := $(shell git describe --tags --exact-match 2>/dev/null)
 
-# The VERSION is now overridable from the command line, with a default
+# The VERSION is overridable from the command line, with a default
 VERSION       ?= development
 
 RELEASE_NAME  := $(APP_NAME)-$(VERSION)
 # ──────────────────────────────
 #        DEV PURPOSES
 # ──────────────────────────────
-REMOTE_USER   := schahid
-REMOTE_HOST   := 172.172.181.31
-REMOTE_PATH   := /home/schahid/workspace/config
-SSH_KEY       := ~/.ssh/id_rsa
+REMOTE_USER   		:= root
+REMOTE_HOST   		:= 167.172.232.42
+REMOTE_HOST_WORKER 	:= 174.138.80.89
+REMOTE_PATH   		:= /
+SSH_KEY       		:= ~/.ssh/do-rbati-cni
 
 # Colors
 BOLD=\033[1m
@@ -58,8 +59,9 @@ dev:
 # ──────────────────────────────
 .PHONY: scp
 scp: release
-	@echo "$(CYAN)📦 Copying binaries to remote dev machine...$(RESET)"
+	@echo "$(CYAN)📦 Copying binaries to remote dev machines...$(RESET)"
 	@scp -i $(SSH_KEY) -r $(RELEASE_DIR) $(REMOTE_USER)@$(REMOTE_HOST):$(REMOTE_PATH)
+	@scp -i $(SSH_KEY) -r $(RELEASE_DIR) $(REMOTE_USER)@$(REMOTE_HOST_WORKER):$(REMOTE_PATH)
 	@echo "$(CHECKMARK) Files copied."
 
 # ──────────────────────────────
@@ -111,9 +113,9 @@ help:
 	@echo "\033[1m📦 $(APP_NAME) Makefile — Available Targets:\033[0m"
 	@echo "────────────────────────────────────────────────────────"
 	@echo "  🆘  \033[36mhelp\033[0m         Show this help message"
-	@echo "  🛠️   \033[36mall\033[0m          Build default binary (rbati-d only)"
+	@echo "  🛠️   \033[36mall\033[0m         Build default binary (rbati-d only)"
 	@echo "  🧱  \033[36mbuild\033[0m        Build \033[1mrbati-d\033[0m (minimal default)"
-	@echo "  🧪  \033[36mdev\033[0m     Build \033[1mrbati-d\033[0m and \033[1mrbati-agent\033[0m (dev use)"
+	@echo "  🧪  \033[36mdev\033[0m          Build \033[1mrbati-d\033[0m and \033[1mrbati-agent\033[0m (dev use)"
 	@echo "  🧰  \033[36minit\033[0m         Initialize Go module as \033[1m$(APP_NAME)\033[0m"
 	@echo "  📦  \033[36mrelease\033[0m      Create release zip with binaries and scripts"
 	@echo "  🚀  \033[36mscp\033[0m          Copy release folder to remote dev machine"
