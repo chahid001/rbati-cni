@@ -61,7 +61,7 @@ Rbati CNI uses a standard two-component architecture:
 
 Rbati CNI isn't just a black box; it comes with observability out of the box. The agent exposes Prometheus metrics for IPAM and CNI operations usage.
 
-![Grafana Dashboard](https://github.com/chahid001/rbati-cni/raw/main/docs/assets/dashboard.png)
+![Grafana Dashboard](https://github.com/chahid001/rbati-cni/raw/main/assets/dashboard.png)
 *(Screenshot: Custom Grafana dashboard showing real-time IPAM/CNI operations)*
 
 ---
@@ -72,11 +72,11 @@ The project includes a robust Makefile and clear interface management.
 
 **Interfaces Created:**
 Rbati CNI creates a Bridge (`rbati.0`) and a VXLAN interface (`rbati.1`) on the host to manage traffic.
-![Interfaces Screenshot](https://github.com/chahid001/rbati-cni/raw/main/docs/assets/interfaces.png)
+![Interfaces Screenshot](https://github.com/chahid001/rbati-cni/raw/main/assets/interfaces.png)
 
 **Developer Tools:**
 Easy-to-use Make commands for building, testing, and deploying.
-![Make Help Screenshot](https://github.com/chahid001/rbati-cni/raw/main/docs/assets/make-help.png)
+![Make Help Screenshot](https://github.com/chahid001/rbati-cni/raw/main/assets/make-help.png)
 
 ---
 
