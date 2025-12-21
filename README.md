@@ -59,10 +59,29 @@ Rbati CNI uses a standard two-component architecture:
 
 ## 📊 Monitoring & Observability
 
-Rbati CNI isn't just a black box; it comes with observability out of the box. The agent exposes Prometheus metrics for IPAM and CNI operations usage.
+Rbati CNI comes with full observability out of the box. The agent exposes Prometheus metrics for IPAM usage and CNI operation latency.
 
 ![Grafana Dashboard](https://github.com/chahid001/rbati-cni/raw/main/assets/dashboard.png)
 *(Screenshot: Custom Grafana dashboard showing real-time IPAM/CNI operations)*
+
+### How to setup Monitoring
+
+1.  **Configure Prometheus**:
+    Add your node IPs to your `prometheus.yml` scrape config. The agent listens on port **9100** by default (or the port specified in `metrics_port` in your CNI config).
+
+    ```yaml
+    scrape_configs:
+      - job_name: 'rbati-cni'
+        static_configs:
+          - targets: ['<MASTER_NODE_IP>:9100', '<WORKER_NODE_IP>:9100']
+    ```
+  ![Metrics](https://github.com/chahid001/rbati-cni/raw/main/assets/metrics.png) 
+
+
+2.  **Setup Grafana**:
+    * Add your Prometheus server as a **Data Source**.
+    * Go to **Dashboards** -> **Import**.
+    * Upload the JSON file located in this repository at: `metrics/grafana-dashboard.json`.
 
 ---
 
@@ -118,10 +137,10 @@ The CNI configuration is managed via a file in `/etc/cni/net.d/`, typically name
 {
   "cniVersion": "0.4.0",
   "name": "rbati",
-  "type": "rbati", 
+  "type": "rbati",
   "iface": "eth1",
   "metrics_port": "9100",
-  "ipam": {           
+  "ipam": {
     "dns": {
       "nameservers": ["8.8.8.8", "1.1.1.1"],
       "search": ["svc.cluster.local"]
@@ -136,7 +155,7 @@ The CNI configuration is managed via a file in `/etc/cni/net.d/`, typically name
 
 The following features are planned for future releases:
 
-- [ ] **Agent Monitoring**: Expanding the metrics to include agent health monitoring and VXLAN/Packets traffic. 
+- [ ] **Agent Monitoring**: Expanding the metrics to include agent health monitoring and VXLAN/Packets traffic.
 - [ ] **Network Policies**: Implementation of `NetworkPolicy` resource support (Ingress/Egress) using `iptables` chains.
 - [ ] **eBPF Dataplane**: Replacing the current `iptables` and Bridge logic with eBPF (XDP/TC) for high-performance packet processing, similar to Cilium.
 
@@ -148,7 +167,7 @@ I used K3s for my development environment. Use the following command to spin up 
 
 ```bash
 # Master node
-curl -sfL https://get.k3s.io | \
+curl -sfL [https://get.k3s.io](https://get.k3s.io) | \
   INSTALL_K3S_EXEC="\
     --bind-address=<host IP> \
     --node-ip=<host IP> \
@@ -164,7 +183,7 @@ Want to contribute?
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/chahid001/rbati-cni.git
+    git clone [https://github.com/chahid001/rbati-cni.git](https://github.com/chahid001/rbati-cni.git)
     cd rbati-cni
     ```
 2.  **Build the binaries:**
