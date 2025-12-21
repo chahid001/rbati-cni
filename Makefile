@@ -17,8 +17,8 @@ RELEASE_NAME  := $(APP_NAME)-$(VERSION)
 #        DEV PURPOSES
 # ──────────────────────────────
 REMOTE_USER   := schahid
-REMOTE_HOST   := 192.168.0.170
-REMOTE_PATH   := /home/schahid/workspace/p2/config
+REMOTE_HOST   := 172.172.181.31
+REMOTE_PATH   := /home/schahid/workspace/config
 SSH_KEY       := ~/.ssh/id_rsa
 
 # Colors
@@ -46,7 +46,7 @@ build:
 	@GOOS=linux GOARCH=amd64 go build -o $(BIN_DIR)/rbati-d cmd/cni/main.go
 	@echo "$(CHECKMARK) Binaries built successfully."
 
-buildDev:
+dev:
 	@echo "$(BLUE)🚀 Building Go binaries for dev env...$(RESET)"
 	@mkdir -p $(BIN_DIR)
 	@GOOS=linux GOARCH=amd64 go build -o $(BIN_DIR)/rbati-d cmd/cni/main.go
@@ -57,7 +57,7 @@ buildDev:
 #     SCP TO REMOTE TARGET
 # ──────────────────────────────
 .PHONY: scp
-scp:
+scp: release
 	@echo "$(CYAN)📦 Copying binaries to remote dev machine...$(RESET)"
 	@scp -i $(SSH_KEY) -r $(RELEASE_DIR) $(REMOTE_USER)@$(REMOTE_HOST):$(REMOTE_PATH)
 	@echo "$(CHECKMARK) Files copied."
@@ -113,7 +113,7 @@ help:
 	@echo "  🆘  \033[36mhelp\033[0m         Show this help message"
 	@echo "  🛠️   \033[36mall\033[0m          Build default binary (rbati-d only)"
 	@echo "  🧱  \033[36mbuild\033[0m        Build \033[1mrbati-d\033[0m (minimal default)"
-	@echo "  🧪  \033[36mbuildDev\033[0m     Build \033[1mrbati-d\033[0m and \033[1mrbati-agent\033[0m (dev use)"
+	@echo "  🧪  \033[36mdev\033[0m     Build \033[1mrbati-d\033[0m and \033[1mrbati-agent\033[0m (dev use)"
 	@echo "  🧰  \033[36minit\033[0m         Initialize Go module as \033[1m$(APP_NAME)\033[0m"
 	@echo "  📦  \033[36mrelease\033[0m      Create release zip with binaries and scripts"
 	@echo "  🚀  \033[36mscp\033[0m          Copy release folder to remote dev machine"

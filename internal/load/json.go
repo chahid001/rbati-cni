@@ -31,6 +31,7 @@ type CNIConfig struct {
 	Type       			string      `json:"type"`
 	Bridge     			string      `json:"bridge,omitempty"`
 	IFace      			string      `json:"iface"`
+	MetricsPort			string		`json:"metrics_port"`
 	IPAM       			*IPAMConfig `json:"ipam,omitempty"`
 }
 
