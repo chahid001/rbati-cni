@@ -214,11 +214,17 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 	}
 }
 
+<<<<<<< HEAD
 
 
 // ///////////////////////////////////
 // ///			Node
 // //////////////////////////////////
+=======
+/////////////////////////////////////
+/////			Node
+////////////////////////////////////
+>>>>>>> refs/remotes/origin/main
 func (c *Controller) onNodeAddfunc(obj interface{}) {
 
 	node := obj.(*v1.Node)

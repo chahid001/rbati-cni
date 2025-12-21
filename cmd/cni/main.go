@@ -10,6 +10,7 @@ import (
 	"rbati-cni/internal/types"
 	"rbati-cni/internal/utils"
 	"strings"
+	"time"
 
 	"github.com/vishvananda/netlink"
 )
@@ -18,7 +19,6 @@ var (
 	envMap     map[string]string
 	configJSON *load.CNIConfig
 )
-
 
 func init() {
 	logs.Init()
@@ -35,10 +35,16 @@ func main() {
 	}
 
 	_, err := netlink.LinkByName(bridge)
-    if err != nil {
-        utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI bridge device not found", 100)
-        os.Exit(1)
-    }
+	if err != nil {
+		utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI bridge device not found", 100)
+		os.Exit(1)
+	}
+
+	_, err = netlink.LinkByName(types.VXLAN_NAME)
+	if err != nil {
+		utils.CreateErr(configJSON.CNIVersion, "Network not ready", "CNI VXLAN device not found", 100)
+		os.Exit(1)
+	}
 
 	cmd := envMap["CNI_COMMAND"]
 
@@ -64,21 +70,31 @@ func main() {
 		}
 	}
 
+	start := time.Now()
 	switch cmd {
 
 	case "ADD":
 		if err := discovery.Add(envMap, configJSON, bridge, ipam); err != nil {
 
+			ipam.IncrementOperation("add_operations_failed", "", -1)
+			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in ADD operation.", err.Error(), 100)
 
 		}
+		duration := time.Since(start).Milliseconds()
+		ipam.IncrementOperation("add_operations_success", "avg_add_duration_milliseconds", int(duration))
+		ipam.WriteSnapshot()
 		os.Exit(0)
 
 	case "DEL":
 		if err := discovery.DEL(envMap, configJSON, ipam); err != nil {
-
+			ipam.IncrementOperation("del_operations_failed", "", -1)
+			ipam.WriteSnapshot()
 			utils.CreateErr(configJSON.CNIVersion, "Failed in DEL operation.", err.Error(), 100)
 		}
+		duration := time.Since(start).Milliseconds()
+		ipam.IncrementOperation("del_operations_success", "avg_del_duration_milliseconds", int(duration))
+		ipam.WriteSnapshot()
 		os.Exit(0)
 
 	case "CHECK":

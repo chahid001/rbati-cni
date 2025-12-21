@@ -4,6 +4,7 @@ package types
 const (
 
 	BUCKET_NAME 		= "ipam"
+	METRIC_BUCKET_NAME  = "metrics"
 	IPAM_FODLER_PATH 	= "/var/lib/cni/rbati-cni"
 	IPAM_DB_FILENAME 	= "ipam.db"
 
@@ -20,4 +21,5 @@ const (
 
 	MAC_ANNOTATION 		= "cni.rbati.io/vxlan-mac"
 
+	METRICS_FILEPATH		= "/run/rbati-cni/metrics.json"
 )

@@ -6,6 +6,7 @@ import (
 	"rbati-cni/internal/controller"
 	"rbati-cni/internal/kube"
 	"rbati-cni/internal/load"
+	"rbati-cni/internal/metrics"
 	"rbati-cni/internal/network"
 	"rbati-cni/internal/types"
 	"rbati-cni/internal/utils"
@@ -108,6 +109,13 @@ func main() {
 	kube.PatchNode(clientset, kube.GetNodeName(), utils.GetMAC(types.VXLAN_NAME))
 
 	log.Printf("[Agent] Finished the setup with success !")
+
+
+	//--------------- Init Metrics ------------------
+	metrics.Init(configJSON.MetricsPort)
+	log.Printf("[INFO] Metrics endpoint started on :%s", configJSON.MetricsPort)
+
+	//--------------- Start Informers ------------------
 	log.Printf("[INFO] [Controller 2/2] Controller starting on node: %s\n", kube.GetNodeName())
 
 	vxlan, err := netlink.LinkByName(types.VXLAN_NAME)

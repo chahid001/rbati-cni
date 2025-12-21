@@ -2,7 +2,7 @@
 # Rbati CNI 🐉
 
 ![Build Status](https://github.com/chahid001/rbati-cni/actions/workflows/release.yml/badge.svg)
-[![Latest Release](https://img.shields.io/github/v/release/your-username/your-cni-repo?display_name=tag&sort=semver)](https://github.com/chahid001/rbati-cni/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/chahid001/rbati-cni?display_name=tag&sort=semver)](https://github.com/chahid001/rbati-cni/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 A simple, yet powerful Container Network Interface (CNI) for Kubernetes, built from scratch in Go. Rbati CNI provides a robust L2 overlay network using VXLAN, enabling seamless pod-to-pod communication across different nodes.
