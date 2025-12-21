@@ -19,13 +19,13 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": null,
   "links": [],
   "panels": [
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "detx2vz02o1kwa"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -78,11 +78,11 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "detx2vz02o1kwa"
+            "uid": "${datasource}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "{\"rbati_cni-ipam_allocated_ips\"} / {\"rbati_cni-ipam_total_ips\"} * 100",
+          "expr": "rbati_cni_ipam_allocated_ips / rbati_cni_ipam_total_ips * 100",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "legendFormat": "__auto",
@@ -91,13 +91,13 @@
           "useBackend": false
         }
       ],
-      "title": "IP Pool Usage ",
+      "title": "IP Pool Usage",
       "type": "gauge"
     },
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "detx2vz02o1kwa"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -156,32 +156,7 @@
           },
           "unit": "ms"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "{__name__=\"rbati_cni-avg_del_duration_milliseconds\", instance=\"192.168.56.110:9090\", job=\"rbati-cni\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -208,8 +183,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-avg_add_duration_milliseconds\"}",
+          "expr": "rbati_cni_avg_add_duration_milliseconds",
           "legendFormat": "ADD",
           "range": true,
           "refId": "A"
@@ -217,10 +196,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "detx2vz02o1kwa"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-avg_del_duration_milliseconds\"}",
+          "expr": "rbati_cni_avg_del_duration_milliseconds",
           "hide": false,
           "instant": false,
           "legendFormat": "DEL",
@@ -233,7 +212,8 @@
     },
     {
       "datasource": {
-        "uid": "detx2vz02o1kwa"
+        "type": "prometheus",
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -280,8 +260,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-add_operations_success\"}",
+          "expr": "rbati_cni_add_operations_success",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -292,7 +276,8 @@
     },
     {
       "datasource": {
-        "uid": "detx2vz02o1kwa"
+        "type": "prometheus",
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -339,19 +324,24 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-del_operations_success\"}",
+          "expr": "rbati_cni_del_operations_success",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "ADD Operation - Success",
+      "title": "DEL Operation - Success",
       "type": "stat"
     },
     {
       "datasource": {
-        "uid": "detx2vz02o1kwa"
+        "type": "prometheus",
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -398,8 +388,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-add_operations_failed\"}",
+          "expr": "rbati_cni_add_operations_failed",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -411,7 +405,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "detx2vz02o1kwa"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -463,8 +457,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-add_operations_success\"} + {\"rbati_cni-del_operations_success\"}",
+          "expr": "rbati_cni_add_operations_success + rbati_cni_del_operations_success",
           "legendFormat": "Succeeded Operations",
           "range": true,
           "refId": "A"
@@ -472,10 +470,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "detx2vz02o1kwa"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-add_operations_failed\"} + {\"rbati_cni-del_operations_failed\"} ",
+          "expr": "rbati_cni_add_operations_failed + rbati_cni_del_operations_failed ",
           "hide": false,
           "instant": false,
           "legendFormat": "Failed Operations",
@@ -488,7 +486,8 @@
     },
     {
       "datasource": {
-        "uid": "detx2vz02o1kwa"
+        "type": "prometheus",
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -535,8 +534,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-ipam_total_ips\"}",
+          "expr": "rbati_cni_ipam_total_ips",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -547,7 +550,8 @@
     },
     {
       "datasource": {
-        "uid": "detx2vz02o1kwa"
+        "type": "prometheus",
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -594,8 +598,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-del_operations_failed\"}",
+          "expr": "rbati_cni_del_operations_failed",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -606,7 +614,8 @@
     },
     {
       "datasource": {
-        "uid": "detx2vz02o1kwa"
+        "type": "prometheus",
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -653,8 +662,12 @@
       "pluginVersion": "12.1.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "{\"rbati_cni-ipam_allocated_ips\"}",
+          "expr": "rbati_cni_ipam_allocated_ips",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -671,7 +684,18 @@
     "kubernetes"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "hide": 0,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
@@ -681,5 +705,5 @@
   "timezone": "browser",
   "title": "Rbati CNI",
   "uid": "7846d3f5-d4f3-4f8c-8626-d4ca1fa98690",
-  "version": 19
+  "version": 20
 }
