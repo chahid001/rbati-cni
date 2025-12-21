@@ -17,58 +17,78 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-
+// Overlay Controle Plane
 
 type Controller struct {
-	
-	clientSet 		*kubernetes.Clientset
-	nodeName		string
-	Vxlan 			netlink.Link
-	processedNodes 	map[string]bool
-	processedPods 	map[string]bool
-	vxlanMacs      	map[string]net.HardwareAddr // Race condition
-	vxlanMacsMutex 	sync.RWMutex
+	clientSet *kubernetes.Clientset
+	nodeName  string
+	Vxlan     netlink.Link
+
+	processedNodes map[string]bool
+	processedPods  map[string]bool
+
+	vxlanMacs      map[string]net.HardwareAddr // Race condition
+	vxlanMacsMutex sync.RWMutex
 }
 
-
 func NewController(_clientSet *kubernetes.Clientset, _nodeName string, _Vxlan netlink.Link) *Controller {
-	
+
 	return &Controller{
-		clientSet: _clientSet,
-		nodeName: _nodeName,
-		Vxlan: _Vxlan,
+
+		clientSet:      _clientSet,
+		nodeName:       _nodeName,
+		Vxlan:          _Vxlan,
 		processedNodes: make(map[string]bool),
-		processedPods: make(map[string]bool),
-		vxlanMacs: make(map[string]net.HardwareAddr),
+		processedPods:  make(map[string]bool),
+		vxlanMacs:      make(map[string]net.HardwareAddr),
 	}
 
 }
 
 func (c *Controller) Run(stopCh chan struct{}) {
 
+	// Informers are used to watch for changes in the cluster
+	log.Println("[INFO] Starting Informers...")
+
+	// Create a shared informer factory to manage informers
+	// The factory will create informers for the resources we want to watch
+	// The second parameter is the resync period, which is how often the informer will re-sync with the API server
+	// In this case, we set it to 30 seconds
+	// This means that the informer will re-sync with the API server every 30 seconds
+	// This is useful for ensuring that the informer has the latest state of the cluster
+	// and can detect changes that may have occurred while it was not running
+	log.Println("[INFO] Creating Shared Informer Factory...")
+
 	factory := informers.NewSharedInformerFactory(c.clientSet, 30*time.Second)
 
-	nodeInformer 	:= factory.Core().V1().Nodes()
-	podInformer 	:= factory.Core().V1().Pods()
+	nodeInformer := factory.Core().V1().Nodes()
+	podInformer := factory.Core().V1().Pods()
+	policyInformer := factory.Networking().V1().NetworkPolicies()
 
 	nodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: 	c.onNodeAddfunc,
+		AddFunc:    c.onNodeAddfunc,
 		UpdateFunc: c.onNodeUpdatefunc,
 		DeleteFunc: c.onNodeDelfunc,
 	})
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: 	c.onPodAdd,
+		AddFunc:    c.onPodAdd,
 		UpdateFunc: c.onPodUpdate,
 		DeleteFunc: c.onPodDelete,
 	})
 
 	factory.Start(stopCh)
-    log.Println("[INFO] Waiting for informer caches to sync...")
-    if !cache.WaitForCacheSync(stopCh, nodeInformer.Informer().HasSynced) {
-        log.Fatalln("failed to sync caches")
-    }
-    log.Println("[INFO] Informer caches synced. Controller is running.")
-	<- stopCh
+	log.Println("[INFO] Waiting for informer caches to sync...")
+
+	// Wait for the caches to sync before proceeding
+	// This is important to ensure that the controller has the latest state of the cluster
+	// before it starts processing events
+	// If the caches are not synced, the controller may miss events or process stale data
+	// The WaitForCacheSync function will block until all caches are synced or the stop channel is closed
+	if !cache.WaitForCacheSync(stopCh, nodeInformer.Informer().HasSynced, policyInformer.Informer().HasSynced) {
+		log.Fatalln("failed to sync caches")
+	}
+	log.Println("[INFO] Informer caches synced. Controller is running.")
+	<-stopCh
 }
 
 func (c *Controller) proceedNode(node *v1.Node, Kind bool) {
@@ -89,11 +109,11 @@ func (c *Controller) proceedNode(node *v1.Node, Kind bool) {
 	macString, ok := node.Annotations[types.MAC_ANNOTATION]
 	if !ok || macString == "" {
 		log.Printf("[INFO] VXLAN MAC annotation for node %s not found yet. Will process on update.", node.Name)
-		return 
+		return
 	}
-    log.Printf("[DEBUG] Raw annotation string being parsed: %q", macString)
-    
-    cleanMacString := strings.TrimSpace(macString)
+	log.Printf("[DEBUG] Raw annotation string being parsed: %q", macString)
+
+	cleanMacString := strings.TrimSpace(macString)
 
 	vxlanMAC, err := net.ParseMAC(cleanMacString) // Get VXLAN MAC
 
@@ -105,10 +125,10 @@ func (c *Controller) proceedNode(node *v1.Node, Kind bool) {
 	c.vxlanMacsMutex.Lock()
 	c.vxlanMacs[node.Name] = vxlanMAC
 	c.vxlanMacsMutex.Unlock()
-	
+
 	//---------------- FDB -------------
 
-	if err := network.AddFDBEntry(c.Vxlan.Attrs().Name, vxlanMAC, internalIP, Kind) ; err != nil { // Netlink equivalent to bridge fdb
+	if err := network.AddFDBEntry(c.Vxlan.Attrs().Name, vxlanMAC, internalIP, Kind); err != nil { // Netlink equivalent to bridge fdb
 		log.Printf("[ERROR] Failed to add FDB entry: %v", err)
 		return
 	}
@@ -117,34 +137,33 @@ func (c *Controller) proceedNode(node *v1.Node, Kind bool) {
 
 	route := netlink.Route{
 		LinkIndex: c.Vxlan.Attrs().Index,
-		Dst: peerSubnet,
-		Scope: netlink.SCOPE_LINK,
+		Dst:       peerSubnet,
+		Scope:     netlink.SCOPE_LINK,
 	}
-	
+
 	if Kind {
 		if err := netlink.RouteAdd(&route); err != nil {
 			log.Printf("[ERROR] Failed to add route: %v", err)
 			return
 		}
 		log.Println("Route added successfully.")
-		
+
 		c.processedNodes[node.Name] = true
-	
+
 	} else {
 		if err := netlink.RouteDel(&route); err != nil {
 			log.Printf("[ERROR] Failed to add route: %v", err)
 			return
 		}
-		log.Println("Route Deleted successfully.")	
-		
+		log.Println("Route Deleted successfully.")
+
 		c.vxlanMacsMutex.Lock()
 		delete(c.vxlanMacs, node.Name)
 		c.vxlanMacsMutex.Unlock()
-		delete(c.processedPods, node.Name)	
+		delete(c.processedPods, node.Name)
 	}
 
 }
-
 
 func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 
@@ -164,11 +183,11 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 	}
 
 	neighEntry := netlink.Neigh{
-		LinkIndex: 		c.Vxlan.Attrs().Index,
-		IP: 			podIP,
-		HardwareAddr:	mac,
-		Family: 		netlink.FAMILY_V4,
-		State:        	netlink.NUD_PERMANENT,		
+		LinkIndex:    c.Vxlan.Attrs().Index,
+		IP:           podIP,
+		HardwareAddr: mac,
+		Family:       netlink.FAMILY_V4,
+		State:        netlink.NUD_PERMANENT,
 	}
 
 	if err := netlink.NeighDel(&neighEntry); err != nil {
@@ -193,27 +212,25 @@ func (c *Controller) proceedPod(pod *v1.Pod, Kind bool) {
 		c.vxlanMacsMutex.Unlock()
 		delete(c.processedPods, pod.Name)
 	}
-
-	
-
 }
 
 
-/////////////////////////////////////
-/////			Node
-////////////////////////////////////
+
+// ///////////////////////////////////
+// ///			Node
+// //////////////////////////////////
 func (c *Controller) onNodeAddfunc(obj interface{}) {
 
 	node := obj.(*v1.Node)
 
-	if !c.processedNodes[node.Name]  && isNodeReady(node){
+	if !c.processedNodes[node.Name] && isNodeReady(node) {
 		c.proceedNode(node, true)
 	}
 
 }
 
-func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) { 
-	
+func (c *Controller) onNodeUpdatefunc(oldObj, newObj interface{}) {
+
 	newNode := newObj.(*v1.Node)
 	if !isNodeReady(newNode) {
 		return
@@ -235,9 +252,9 @@ func (c *Controller) onNodeDelfunc(obj interface{}) {
 
 }
 
-/////////////////////////////////////
-/////			Pod
-////////////////////////////////////
+// ///////////////////////////////////
+// ///			Pod
+// //////////////////////////////////
 func (c *Controller) onPodAdd(obj interface{}) {
 	pod := obj.(*v1.Pod)
 
@@ -250,23 +267,25 @@ func (c *Controller) onPodAdd(obj interface{}) {
 	}
 
 	c.proceedPod(pod, true)
+
 }
 
 func (c *Controller) onPodUpdate(oldObj, newObj interface{}) {
 	pod := newObj.(*v1.Pod)
-	
+
 	if c.processedPods[pod.Name] {
 		return
 	}
-	
+
 	if pod.Status.Phase != v1.PodRunning || pod.Status.PodIP == "" {
 		return
 	}
 	c.proceedPod(pod, true)
+
 }
 
 func (c *Controller) onPodDelete(obj interface{}) {
-	
+
 	pod := obj.(*v1.Pod)
 	c.proceedPod(pod, false)
 
@@ -289,5 +308,3 @@ func isNodeReady(node *v1.Node) bool {
 	return false
 
 }
-
-

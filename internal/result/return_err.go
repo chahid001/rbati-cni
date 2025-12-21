@@ -11,6 +11,6 @@ func ReturnErr(ErrObject *types.CNIError) {
 
 	errBytes, _ := json.Marshal(ErrObject)
 
-	fmt.Fprintf(os.Stderr, string(errBytes))
+	fmt.Fprint(os.Stderr, string(errBytes))
 
 }
